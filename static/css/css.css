@@ -62,6 +62,7 @@ h1 {
     color: #333;
     }
 
+
 i {
     font-size: 0.75em;
     color: #666
@@ -80,3 +81,7 @@ i a {
     margin-left: 10px;
     vertical-align: text-bottom;
     }
+
+.tips {
+    font-size: .8em;
+}
