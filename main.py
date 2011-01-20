@@ -224,6 +224,22 @@ class AdminHandler(webapp.RequestHandler):
                 self.response.out.write('do %s : OK' % action)
             
 
+class CronHandler(webapp.RequestHandler):
+
+    def delete_expired_tokens(self):
+        expired = datetime.datetime.now() - datetime.timedelta(hours=2)
+        expired_tokens = OAuthRequestToken.all().filter('created <', expired)
+        
+        count = 0
+        for token in expired_tokens[:10]:
+            token.delete()
+            count += 1
+        logging.info('delete expired tokens: %d' % count)
+        if count: self.redirect(self.request.url)
+        
+        
+    def get(self, action):
+        self.delete_expired_tokens()
 
 
 
@@ -268,6 +284,7 @@ def main():
     application = webapp.WSGIApplication([
             ('^/api/(.*?)/?$'  , APIHandler  ),
             ('^/admin/(.*?)/?$', AdminHandler),
+            ('^/cron/(.*?)/?$' , CronHandler),
             ('^/(.*?)/?$'      , MainHandler ),
             ], debug=True)
     util.run_wsgi_app(application)
