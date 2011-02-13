@@ -12,7 +12,7 @@ http://you-ha-shock.appspot.com
 
 
 ## 管理用
-./admin/edit でデータの管理ができます。登録名と登録内容を以下に列挙します。
+./admin/edit でデータの管理ができます(要認証)。登録名と登録内容を以下に列挙します。
 
 
 ### oauth (必須)
