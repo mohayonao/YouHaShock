@@ -14,7 +14,7 @@ import logging
 from google.appengine.ext import db
 from google.appengine.api import urlfetch
 
-from model.model import OAuthRequestToken, OAuthAccessToken
+from model import OAuthRequestToken, OAuthAccessToken
 
 
 ################################################################################
@@ -102,26 +102,18 @@ class OAuthHandler:
         if not oauth_token: self.login()
         
         # Request Token
-        logging.debug('[auth.py] oauth_token = %s' % oauth_token)
-        
         request_token = OAuthRequestToken.get_request_token(oauth_token)
-        
-        logging.debug('[auth.py] request_token = %s' % request_token)
         
         access_url = self.client. \
             get_data_from_signed_url(self.client.access_token_url, request_token)
         request_token.delete()
-        logging.debug('[auth.py] delete OAuthRequestToken: %s' % oauth_token[1:])
         
         # Access Token
-        logging.debug('[auth.py] access_url: %s' % access_url)
-        
         params = url2dict(access_url)
         name = params.get('screen_name')
         if not name: return
         
-        access_token = OAuthAccessToken.set_access_token(name, access_url)
+        access_token = OAuthAccessToken.set_access_token(access_url)
+        access_token.put() # update
         
-        logging.debug('[auth.py] add new OAuthAccessToken: %s' % name)
-        
-        return access_token
+        return name, access_token

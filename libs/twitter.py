@@ -84,7 +84,8 @@ class TwitterAPI:
     
     # bind methods for twitter api defined twitterapi.yaml
     def bind_api_methods(self):
-        apilist  = get_api_list('twitterapi.yaml')
+        filepath = '%s/twitterapi.yaml' % os.path.dirname(__file__)
+        apilist  = get_api_list(filepath)
         method_dict = dict( GET=self.GET, POST=self.POST, DELETE=self.DELETE)
         
         for name, http_method, url, require in apilist:

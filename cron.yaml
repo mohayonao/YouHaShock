@@ -1,5 +1,10 @@
 cron:
 - description: delete expired tokens
-  url: /cron/
+  url: /cron/access
   schedule: every day 00:00
+
+- description: delete expired tokens
+  url: /cron/request
+  schedule: every day 02:00
+
   
