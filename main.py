@@ -287,8 +287,8 @@ class CronHandler(webapp.RequestHandler):
         consumer = dict(consumer_key    = conf.get('consumer_key'   ),
                         consumer_secret = conf.get('consumer_secret'))
         
+        expired = datetime.datetime.now() - datetime.timedelta(hours=6)
         expired_token = OAuthAccessToken.all().filter('modified <', expired).get()
-        expired_token = OAuthAccessToken.all().get()
         if not expired_token:
             logging.info("verify access token: DONE")
             return
