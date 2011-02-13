@@ -144,12 +144,6 @@ class MainHandler(webapp.RequestHandler):
     """YouはShock本体"""
     
     def get(self, action):
-        now = datetime.datetime.now() + datetime.timedelta(hours=+9)
-        logging.info('%s [%s]' % (action, now))
-        
-        template_value = {}
-        description = random_description()
-        if description: template_value['description'] = description
         
         if action == 'verify':
             conf = DBYAML.load('oauth')
@@ -159,6 +153,9 @@ class MainHandler(webapp.RequestHandler):
             # redirect (not reached)
             
         elif action == 'callback':
+            now = datetime.datetime.now() + datetime.timedelta(hours=+9)
+            logging.info('%s [%s]' % (action, now))
+            
             conf = DBYAML.load('oauth')
             if not conf: return
             handler = libs.auth.OAuthHandler(handler=self, conf=conf)
@@ -172,6 +169,13 @@ class MainHandler(webapp.RequestHandler):
             # redirect (not reached)
             
         else:
+            template_value = {}
+            description = random_description()
+            if description: template_value['description'] = description
+            
+            ad = DBYAML.load('ad')
+            if ad: template_value['ad'] = ad
+            
             html = template.render('tmpl/index.html', template_value)
             self.response.out.write(html)
 

@@ -1,22 +1,63 @@
-body {
+body, h1, div {
     margin: 0px;
-    padding: 10px;
-    }
+    padding: 0px;
+}
 
-h1 {
+i {
+    font-size: 0.75em;
+    color: #666
+}
+
+i a {
+    color: #666;
+    text-decoration: none;
+}
+
+
+#header, #body, #footer {
+    margin: 10px 20px;
+}
+
+#header h1 {
     font-size: 2em;
-    margin: 0px;
     text-shadow: rgb(224, 224, 224) 2px 2px 0px;
-    }
+}
 
-.description {
+#header .description {
     font-size: .8em;
     color: #333;
-    }
+}
 
-.ctrl {
-    padding: 20px;
-    }
+#body button {
+    margin: 20px;
+}
+
+.box {
+    border: solid 1px darkgray;
+    width: 688px;
+    padding: 10px 20px;    
+    font-size: 0.8em;
+    margin-bottom: 25px;
+}
+
+.tips {
+    font-size: 0.8em;
+}
+
+.word {
+    color: crimson
+}
+
+#footer {
+    font-size: .8em;
+    color: #333;
+}
+
+#progress {
+    margin-left: 10px;
+    vertical-align: text-bottom;
+}
+
 
 .btn {
     background: rgb(224, 224, 224);
@@ -51,42 +92,4 @@ h1 {
 .btn a {
     color: black;
     text-decoration: none;
-    }
-
-.border {
-    border: solid 1px gray;
-    margin: 15px;
-    padding: 10px;
-    font-size: 0.8em;
-    width: 620px;
-    }
-
-.footer {
-    padding: 20px 0px;
-    font-size: .8em;
-    color: #333;
-    }
-
-
-i {
-    font-size: 0.75em;
-    color: #666
-    }
-
-i a {
-    color: #666;
-    text-decoration: none;
-    }
-
-.word {
-    color: crimson
-    }
-
-#progress {
-    margin-left: 10px;
-    vertical-align: text-bottom;
-    }
-
-.tips {
-    font-size: .8em;
 }

@@ -126,7 +126,7 @@ class YouHaShockHistory(db.Model):
     @classmethod
     def get_histories(cls, page):
         gql = db.GqlQuery('SELECT * FROM YouHaShockHistory ORDER BY created DESC')
-        lst = gql.fetch(20, page * 20)
+        lst = gql.fetch(15, page * 15)
         return lst
 
 

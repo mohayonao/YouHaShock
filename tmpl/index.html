@@ -16,31 +16,31 @@
     <link rel="stylesheet" href="css.css" type="text/css"/>
   </head>
   <body>
-    <h1>YOUはSHOCK</h1>
-    <div class="description">{{description}}</div>
-    <div class="ctrl">
-      {% if testmode %}
-      <a href="verify-test/"><button class="btn">テスト</button></a>
-      {% else %}
+    <div id="header">
+      <h1>YOUはSHOCK</h1>
+      <span class="description">{{description}}</span>
+    </div>
+    <div id="body">
       <a href="verify/"><button class="btn">使う</button></a>
-      {% endif %}
+      <div class="box tips">
+        使い方
+        <ol>
+          <li>「使う」をクリックするとTwitter認証画面に飛びます。(認証済みの人は3へ)</li>
+          <li>「許可する」を選択します。</li>
+          <li>同じようにTwitter認証を登録した誰かが「ひでぶ」とか「あべし」とか言います。</li>
+          <li>その後、誰かが同じように「使う」た時に、あなたが「ひでぶ」とか言うかもしれません。</li>
+        </ol>
+      </div>
+      <div id="history" class="box">
+        <div id="history-list"></div>
+        <a href="javascript:void(0)" id="history-more-see"><b>もっと見る</b></a><img id="progress" src="progress.gif"/>
+      </div>
+      {{ad}}
     </div>
-    <div class="border tips">
-      使い方
-      <ol>
-        <li>「使う」をクリックするとTwitter認証画面に飛びます。(認証済みの人は3へ)</li>
-        <li>「許可する」を選択します。</li>
-        <li>同じようにTwitter認証を登録した誰かが「ひでぶ」とか「あべし」とか言います。</li>
-        <li>その後、誰かが同じように「使う」た時に、あなたが「ひでぶ」とか言うかもしれません。</li>
-        <li>やめたいときは <a href="http://twitter.com/settings/connections" target="_blank">このページ</a> で YOUはSHOCK の「許可を取り消す」をクリックしてください。</li>
-      </ol>
+    <div id="footer">
+      {% now "Y" %} <a href="http://twitter.com/mohayonao" target="_blank">@mohayonao</a> / Source Code on <a href="https://github.com/mohayonao/YouHaShock">GitHub</a>
     </div>
-    <div class="border history" id="history">
-      <div id="history-list"></div>
-      <a href="javascript:void(0)" id="history-more-see"><b>もっと見る</b></a><img id="progress" src="progress.gif"/>
-    </div>
-    <div class="footer">{% now "Y" %} <a href="http://twitter.com/mohayonao" target="_blank">@mohayonao</a> / Source Code on <a href="https://github.com/mohayonao/YouHaShock">GitHub</a></div>
   </body>
   <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js"></script>
-  <script src="main.js" type="text/javascript"></script>
+  <script type="text/javascript" src="main.js"></script>
 </html>
