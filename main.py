@@ -74,7 +74,7 @@ def tweet_status_link(user, status_id, caption):
         (user, status_id, caption)
 
 
-def random_tweet(via, debug_handler=None):
+def random_tweet(via, debug_handler=None, refrect_lv=0):
     
     conf = DBYAML.load('oauth')
     if not conf: return
@@ -90,6 +90,13 @@ def random_tweet(via, debug_handler=None):
     lst = OAuthAccessToken.get_random_access_token(10)
     if from_token not in lst:
         lst.append(from_token)
+        
+    for i in xrange(refrect_lv * 3):
+        lst.append(from_token)
+
+    refrect_count = lst.count(from_token)
+    logging.info('refrect(%s): %5.3f' % (from_user, float(refrect_count) / len(lst)))
+    
     random.shuffle(lst)
     
     result = 0
@@ -175,15 +182,20 @@ class MainHandler(webapp.RequestHandler):
             else:
                 logging.info('cached verify')
                 name = cacheitem['name']
-                ent = OAuthAccessToken()
+                key_name = '_%s' % cacheitem['oauth_token'][:15]
+                ent = OAuthAccessToken(key_name=key_name)
                 ent.oauth_token        = cacheitem['oauth_token']
                 ent.oauth_token_secret = cacheitem['oauth_token_secret']
+                cacheitem['count'] += 1
                 
-                # random tweet
-                result = random_tweet( via=(name, ent) )
+                memcache.set(session_id, cacheitem)
+                
+                # random tweet                
+                refrect_lv = cacheitem.get('count', 0)
+                result = random_tweet( via=(name, ent), refrect_lv=refrect_lv)
                 if result < 0:
                     OAuthAccessTokenCount.add_count(result)
-            
+                    
                 return self.redirect("/")
                 # redirect (not reached)
             
@@ -202,15 +214,16 @@ class MainHandler(webapp.RequestHandler):
             session_id = self.request.cookies.get('session_id')
             if session_id is None:
                 session_id = str(random.getrandbits(64))
-                expires = datetime.datetime.now() + datetime.timedelta(minutes=3)
+                expires = datetime.datetime.now() + datetime.timedelta(minutes=5)
                 self.response.headers.add_header(  
                     'Set-Cookie', 'session_id=%s;expires=%s' % (session_id, expires))
                 logging.debug('SET: session_id: %s' % session_id)
                 
             cacheitem = dict(name=name,
                              oauth_token=access_token.oauth_token,
-                             oauth_token_secret=access_token.oauth_token_secret)
-            memcache.add(session_id, cacheitem, time=180)
+                             oauth_token_secret=access_token.oauth_token_secret,
+                             count=0)
+            memcache.add(session_id, cacheitem, time=300)
             logging.debug('memcache.add: session_id: %s; %s' % (session_id, cacheitem))
             
             # random tweet
@@ -323,6 +336,11 @@ class TaskHandler(webapp.RequestHandler):
             self.add_task_expired_request_tokens()
         elif action == 'access':
             self.add_task_verify_expired_access_tokens()
+        elif action == 'recount':
+            count = OAuthAccessToken.all().count()
+            logging.info('OAuthAccessToken count=%s' % count)
+            
+            
             
             
     def post(self, action):
@@ -382,17 +400,17 @@ class TaskHandler(webapp.RequestHandler):
             TwitterAPI(oauth).verify()
             
         except urlfetch.DownloadError:
-            logging.warning("verify timeout: %s" % expired_token.oauth_token)
+            logging.warning("verify timeout: %s" % ent.oauth_token)
             return False
             
         except urlfetch.InvalidURLError:
-            logging.info("delete access token: %s" % expired_token.oauth_token)
+            logging.info("delete access token: %s" % ent.oauth_token)
             ent.delete()
             OAuthAccessTokenCount.add_count(-1)
             return True
             
         else:
-            logging.info("verify access token: %s" % expired_token.oauth_token)
+            logging.info("verify access token: %s" % ent.oauth_token)
             ent.put() # update
             return True
 

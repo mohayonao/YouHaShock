@@ -56,6 +56,15 @@ class OAuthAccessTokenCount(db.Model):
             return 0
 
     @classmethod
+    def set_count(cls, val):
+        entity = OAuthAccessTokenCount.get_by_key_name('_')
+        if entity:
+            entity.count = val
+        else:
+            entity = OAuthAccessTokenCount(key_name='_', count=val)
+        entity.put()            
+        
+    @classmethod
     def add_count(cls, val):
         entity = OAuthAccessTokenCount.get_by_key_name('_')
         if entity:
