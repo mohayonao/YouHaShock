@@ -24,6 +24,7 @@ import random
 import logging
 import datetime
 
+from google.appengine.api import memcache
 from google.appengine.api import urlfetch
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import util
@@ -148,23 +149,70 @@ class MainHandler(webapp.RequestHandler):
         if action == 'verify':
             conf = DBYAML.load('oauth')
             if not conf: return
-            handler = libs.auth.OAuthHandler(handler=self, conf=conf)
-            handler.login()
-            # redirect (not reached)
             
-        elif action == 'callback':
             now = datetime.datetime.now() + datetime.timedelta(hours=+9)
             logging.info('%s [%s]' % (action, now))
             
+            # memcache
+            session_id = self.request.cookies.get('session_id')
+            cacheitem  = None
+            if session_id is not None:
+                logging.debug('GET: session_id: %s' % session_id)
+                cacheitem = memcache.get(session_id)
+                logging.debug('memcache.get: session_id: %s; %s' % (session_id, cacheitem))
+                
+            if cacheitem is None:
+                logging.info('new verify')
+                handler = libs.auth.OAuthHandler(handler=self, conf=conf)
+                handler.login()
+                # redirect (not reached)
+                
+            else:
+                logging.info('cached verify')
+                name = cacheitem['name']
+                ent = OAuthAccessToken()
+                ent.oauth_token        = cacheitem['oauth_token']
+                ent.oauth_token_secret = cacheitem['oauth_token_secret']
+                
+                # random tweet
+                result = random_tweet( via=(name, ent) )
+                if result < 0:
+                    OAuthAccessTokenCount.add_count(result)
+            
+                return self.redirect("/")
+                # redirect (not reached)
+            
+            
+        elif action == 'callback':
             conf = DBYAML.load('oauth')
             if not conf: return
+            
+            now = datetime.datetime.now() + datetime.timedelta(hours=+9)
+            logging.info('%s [%s]' % (action, now))
+            
             handler = libs.auth.OAuthHandler(handler=self, conf=conf)
             name, access_token = handler.callback()
             
+            # memcache
+            session_id = self.request.cookies.get('session_id')
+            if session_id is None:
+                session_id = str(random.getrandbits(64))
+                expires = datetime.datetime.now() + datetime.timedelta(minutes=3)
+                self.response.headers.add_header(  
+                    'Set-Cookie', 'session_id=%s;expires=%s' % (session_id, expires))
+                logging.debug('SET: session_id: %s' % session_id)
+                
+            cacheitem = dict(name=name,
+                             oauth_token=access_token.oauth_token,
+                             oauth_token_secret=access_token.oauth_token_secret)
+            memcache.add(session_id, cacheitem, time=180)
+            logging.debug('memcache.add: session_id: %s; %s' % (session_id, cacheitem))
+            
+            # random tweet
             result = random_tweet( via=(name, access_token) )
             if result < 0:
                 OAuthAccessTokenCount.add_count(result)
-                
+            
             return self.redirect("/")
             # redirect (not reached)
             
