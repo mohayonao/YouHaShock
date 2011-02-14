@@ -27,6 +27,10 @@ handlers:
 - url: /cron/.*
   script: main.py
   login: admin
+
+- url: /task/.*
+  script: main.py
+  login: admin
   
 - url: .*
   script: main.py

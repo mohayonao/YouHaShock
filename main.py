@@ -24,8 +24,13 @@ import random
 import logging
 import datetime
 
+from google.appengine.dist import use_library
+use_library('django', '1.2')
+
 from google.appengine.api import memcache
 from google.appengine.api import urlfetch
+from google.appengine.api.labs import taskqueue
+
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import util
 from google.appengine.ext.webapp import template
@@ -270,6 +275,13 @@ class AdminHandler(webapp.RequestHandler):
             ent = DBYAML.get_by_key_name(key_name)
             if ent: self.response.out.write(ent.yaml_text)
 
+        elif action == 'dummy':
+            for i in xrange(50):
+                ent = OAuthRequestToken(key_name='_%s' % i)
+                ent.oauth_token = str(random.getrandbits(64))
+                ent.oauth_token_secret = str(random.getrandbits(64))
+                ent.put()
+                
         elif action == 'test':
             testuser = DBYAML.load('testuser')
             if testuser:
@@ -300,69 +312,89 @@ class AdminHandler(webapp.RequestHandler):
 
 
 
-class CronHandler(webapp.RequestHandler):
+class TaskHandler(webapp.RequestHandler):
     """定期処理"""
-            
+    
     def get(self, action):
         now = datetime.datetime.now() + datetime.timedelta(hours=+9)
         logging.info('cron: %s [%s]' % (action, now))
         
         if action == 'request':
-            self.delete_expired_request_tokens()
-        else:
-            self.delete_expired_access_tokens()
-
-    
-    def delete_expired_request_tokens(self):
-        """残ってしまったOauthのRequestTokenを削除する"""
-        expired = datetime.datetime.now() - datetime.timedelta(hours=2)
+            self.add_task_expired_request_tokens()
+        elif action == 'access':
+            self.add_task_verify_expired_access_tokens()
+            
+            
+    def post(self, action):
+        if action == 'request':
+            key_name = self.request.get('key_name')
+            ent = OAuthRequestToken.get_by_key_name(key_name)
+            if ent: ent.delete()
+            
+        elif action == 'access':
+            key_name = self.request.get('key_name')
+            result = self.verify_oauth_token(key_name)
+            if not result: self.error(504)
+            
+            
+            
+    def add_task_expired_request_tokens(self):
+        expired = datetime.datetime.now() + datetime.timedelta(minutes=10)
         expired_tokens = OAuthRequestToken.all().filter('created <', expired)
-        
-        count = 0
-        for token in expired_tokens[:10]:
-            token.delete()
-            count += 1
-        logging.info('delete expired tokens: %d' % count)
-        if count:
-            self.redirect(self.request.url)
+
+        if expired_tokens:
+            for i, token in enumerate(expired_tokens[:20]):
+                key_name = token.key().name()
+                taskqueue.add(url='/task/request', params=dict(key_name=key_name), countdown=i/3)
         else:
-            logging.info("delete request token: DONE")
+            logging.info('expired request tokens: 0')
             
             
             
-    def delete_expired_access_tokens(self):
-        """認証解除されたOauthのAccessTokenを削除する"""
-        
+    def add_task_verify_expired_access_tokens(self):
         conf = DBYAML.load('oauth')
         if not conf: return
         
+        expired = datetime.datetime.now() - datetime.timedelta(hours=2)
+        expired_tokens = OAuthAccessToken.all().filter('modified <', expired)
+
+        if expired_tokens:
+            for i, token in enumerate(expired_tokens[:20]):
+                key_name = token.key().name()
+                taskqueue.add(url='/task/access', params=dict(key_name=key_name), countdown=i)
+        else:
+            logging.info('expired access tokens: 0')
+            
+            
+            
+    def verify_oauth_token(self, key_name):
+        ent = OAuthAccessToken.get_by_key_name(key_name)
+        if not ent: return
+        token  = dict(token        = ent.oauth_token,
+                      token_secret = ent.oauth_token_secret)
+        
+        conf = DBYAML.load('oauth')
         consumer = dict(consumer_key    = conf.get('consumer_key'   ),
                         consumer_secret = conf.get('consumer_secret'))
         
-        expired = datetime.datetime.now() - datetime.timedelta(hours=6)
-        expired_token = OAuthAccessToken.all().filter('modified <', expired).get()
-        if not expired_token:
-            logging.info("verify access token: DONE")
-            return
-        
-        token  = dict(token        = expired_token.oauth_token,
-                      token_secret = expired_token.oauth_token_secret)
         oauth = OAuth(consumer, token)
         try:
             TwitterAPI(oauth).verify()
             
         except urlfetch.DownloadError:
             logging.warning("verify timeout: %s" % expired_token.oauth_token)
+            return False
             
         except urlfetch.InvalidURLError:
             logging.info("delete access token: %s" % expired_token.oauth_token)
-            expired_token.delete()
+            ent.delete()
             OAuthAccessTokenCount.add_count(-1)
+            return True
+            
         else:
             logging.info("verify access token: %s" % expired_token.oauth_token)
-            expired_token.put() # update
-            
-        self.redirect(self.request.url)
+            ent.put() # update
+            return True
 
 
 
@@ -370,7 +402,8 @@ def main():
     application = webapp.WSGIApplication([
             ('^/api/(.*?)/?$'  , APIHandler  ),
             ('^/admin/(.*?)/?$', AdminHandler),
-            ('^/cron/(.*?)/?$' , CronHandler),
+            ('^/cron/(.*?)/?$' , TaskHandler),
+            ('^/task/(.*?)/?$' , TaskHandler),
             ('^/(.*?)/?$'      , MainHandler ),
             ], debug=True)
     util.run_wsgi_app(application)
