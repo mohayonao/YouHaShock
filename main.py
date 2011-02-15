@@ -86,17 +86,33 @@ def random_tweet(via, debug_handler=None, count=1):
                     consumer_secret = conf.get('consumer_secret'))
     
     from_user, from_token = via
+
+    # 自爆
+    suicide = False
     
-    lst = OAuthAccessToken.get_random_access_token(15)
-    for i in xrange(count * 3):
-        lst.append(from_token)
+    suicide_rate = DBYAML.load('suicide_rate')
+    if suicide_rate:
+        if count >= len(suicide_rate):
+            suicide_rate = suicide_rate[-1]
+        else:
+            suicide_rate = suicide_rate[count]
+            
+        dice = random.random()
+        if dice <= suicide_rate:
+            suicide = True
+        logging.debug('dice=%5.3f, rate=%5.3f' % (dice, suicide_rate))
+    logging.info('count = %s [%s]' % (count, suicide))
     
-    refrect_count = lst.count(from_token)
-    rate = float(lst.count(from_token)) / float(len(lst))
-    logging.info('refrect(%s): count=%d, rate=%5.3f' % (from_user, count, rate))
     
-    random.shuffle(lst)
-    
+    if suicide:
+        lst = [ from_token ]
+    else:
+        lst = OAuthAccessToken.get_random_access_token(15)
+        if from_token in lst:
+            lst.append(from_token)
+        random.shuffle(lst)
+        
+        
     result = 0
     for item in lst:
         word   = random_word()
