@@ -23,8 +23,6 @@ from model import OAuthRequestToken, OAuthAccessToken
 def encode(text):
     return urllib.quote(str(text), '')
 
-def url2dict(url):
-    return dict(token.split('=') for token in url.split('&'))
 
 
 
@@ -103,13 +101,18 @@ class OAuthHandler:
         
         # Request Token
         request_token = OAuthRequestToken.get_request_token(oauth_token)
+        if not request_token: return
         
         access_url = self.client. \
             get_data_from_signed_url(self.client.access_token_url, request_token)
         request_token.delete()
         
         # Access Token
-        params = url2dict(access_url)
+        try:
+            params = dict(token.split('=') for token in access_url.split('&'))
+        except:
+            return
+        
         name = params.get('screen_name')
         if not name: return
         

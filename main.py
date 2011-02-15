@@ -208,13 +208,20 @@ class MainHandler(webapp.RequestHandler):
             logging.info('%s [%s]' % (action, now))
             
             handler = libs.auth.OAuthHandler(handler=self, conf=conf)
-            name, access_token = handler.callback()
+            items = handler.callback()
+            if not items:
+                logging.warning('callback error!')
+                return self.redirect("/")
+            
+            name, access_token = items
             
             # memcache
             session_id = self.request.cookies.get('session_id')
             if session_id is None:
                 session_id = str(random.getrandbits(64))
                 expires = datetime.datetime.now() + datetime.timedelta(minutes=5)
+                expires = expires.strftime('%a, %d %b %Y %H:%M:%S GMT')
+                
                 self.response.headers.add_header(  
                     'Set-Cookie', 'session_id=%s;expires=%s' % (session_id, expires))
                 logging.debug('SET: session_id: %s' % session_id)
@@ -223,7 +230,7 @@ class MainHandler(webapp.RequestHandler):
                              oauth_token=access_token.oauth_token,
                              oauth_token_secret=access_token.oauth_token_secret,
                              count=0)
-            memcache.add(session_id, cacheitem, time=300)
+            memcache.add(session_id, cacheitem, time=60)
             logging.debug('memcache.add: session_id: %s; %s' % (session_id, cacheitem))
             
             # random tweet
@@ -357,13 +364,14 @@ class TaskHandler(webapp.RequestHandler):
             
             
     def add_task_expired_request_tokens(self):
-        expired = datetime.datetime.now() + datetime.timedelta(minutes=10)
+        expired = datetime.datetime.now() - datetime.timedelta(minutes=10)
         expired_tokens = OAuthRequestToken.all().filter('created <', expired)
 
         if expired_tokens:
             for i, token in enumerate(expired_tokens[:20]):
                 key_name = token.key().name()
                 taskqueue.add(url='/task/request', params=dict(key_name=key_name), countdown=i/3)
+                logging.info('taskqueue.add expired request tokens: %s' % key_name)
         else:
             logging.info('expired request tokens: 0')
             
@@ -375,11 +383,12 @@ class TaskHandler(webapp.RequestHandler):
         
         expired = datetime.datetime.now() - datetime.timedelta(hours=2)
         expired_tokens = OAuthAccessToken.all().filter('modified <', expired)
-
+        
         if expired_tokens:
             for i, token in enumerate(expired_tokens[:20]):
                 key_name = token.key().name()
                 taskqueue.add(url='/task/access', params=dict(key_name=key_name), countdown=i)
+                logging.info('taskqueue.add expired access tokens: %s' % key_name)
         else:
             logging.info('expired access tokens: 0')
             
