@@ -74,7 +74,7 @@ def tweet_status_link(user, status_id, caption):
         (user, status_id, caption)
 
 
-def random_tweet(via, debug_handler=None, refrect_lv=0):
+def random_tweet(via, debug_handler=None, count=1):
     
     conf = DBYAML.load('oauth')
     if not conf: return
@@ -87,15 +87,13 @@ def random_tweet(via, debug_handler=None, refrect_lv=0):
     
     from_user, from_token = via
     
-    lst = OAuthAccessToken.get_random_access_token(10)
-    if from_token not in lst:
+    lst = OAuthAccessToken.get_random_access_token(15)
+    for i in xrange(count * 3):
         lst.append(from_token)
-        
-    for i in xrange(refrect_lv * 3):
-        lst.append(from_token)
-
+    
     refrect_count = lst.count(from_token)
-    logging.info('refrect(%s): %5.3f' % (from_user, float(refrect_count) / len(lst)))
+    rate = float(lst.count(from_token)) / float(len(lst))
+    logging.info('refrect(%s): count=%d, rate=%5.3f' % (from_user, count, rate))
     
     random.shuffle(lst)
     
@@ -165,40 +163,9 @@ class MainHandler(webapp.RequestHandler):
             now = datetime.datetime.now() + datetime.timedelta(hours=+9)
             logging.info('%s [%s]' % (action, now))
             
-            # memcache
-            session_id = self.request.cookies.get('session_id')
-            cacheitem  = None
-            if session_id is not None:
-                logging.debug('GET: session_id: %s' % session_id)
-                cacheitem = memcache.get(session_id)
-                logging.debug('memcache.get: session_id: %s; %s' % (session_id, cacheitem))
-                
-            if cacheitem is None:
-                logging.info('new verify')
-                handler = libs.auth.OAuthHandler(handler=self, conf=conf)
-                handler.login()
-                # redirect (not reached)
-                
-            else:
-                logging.info('cached verify')
-                name = cacheitem['name']
-                key_name = '_%s' % cacheitem['oauth_token'][:15]
-                ent = OAuthAccessToken(key_name=key_name)
-                ent.oauth_token        = cacheitem['oauth_token']
-                ent.oauth_token_secret = cacheitem['oauth_token_secret']
-                cacheitem['count'] += 1
-                
-                memcache.set(session_id, cacheitem)
-                
-                # random tweet                
-                refrect_lv = cacheitem.get('count', 0)
-                result = random_tweet( via=(name, ent), refrect_lv=refrect_lv)
-                if result < 0:
-                    OAuthAccessTokenCount.add_count(result)
-                    
-                return self.redirect("/")
-                # redirect (not reached)
-            
+            handler = libs.auth.OAuthHandler(handler=self, conf=conf)
+            handler.login()
+            # redirect (not reached)
             
         elif action == 'callback':
             conf = DBYAML.load('oauth')
@@ -215,7 +182,6 @@ class MainHandler(webapp.RequestHandler):
             
             name, access_token = items
             
-            # memcache
             session_id = self.request.cookies.get('session_id')
             if session_id is None:
                 session_id = str(random.getrandbits(64))
@@ -224,19 +190,19 @@ class MainHandler(webapp.RequestHandler):
                 
                 self.response.headers.add_header(  
                     'Set-Cookie', 'session_id=%s;expires=%s' % (session_id, expires))
-                logging.debug('SET: session_id: %s' % session_id)
-                
-            cacheitem = dict(name=name,
-                             oauth_token=access_token.oauth_token,
-                             oauth_token_secret=access_token.oauth_token_secret,
-                             count=0)
-            memcache.add(session_id, cacheitem, time=60)
-            logging.debug('memcache.add: session_id: %s; %s' % (session_id, cacheitem))
+                logging.info('SET: session_id: %s' % session_id)
+                memcache.set(key=session_id, value=0, time=120)
+            else:
+                memcache.add(key=session_id, value=0, time=120)
+            count = memcache.incr(session_id)
+            if count is None:
+                count = 1
+                logging.warning('memcache replace')
+                memcache.set(key=session_id, value=1, time=120)
             
             # random tweet
-            result = random_tweet( via=(name, access_token) )
-            if result < 0:
-                OAuthAccessTokenCount.add_count(result)
+            result = random_tweet( via=(name, access_token), count=count )
+            if result < 0: OAuthAccessTokenCount.add_count(result)
             
             return self.redirect("/")
             # redirect (not reached)
