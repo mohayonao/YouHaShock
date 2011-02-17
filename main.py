@@ -19,7 +19,6 @@
 
 
 import os
-import yaml
 import random
 import logging
 import datetime
@@ -38,7 +37,6 @@ from google.appengine.ext.webapp import template
 from google.appengine.ext import db
 
 import libs.auth
-import libs.timeago
 
 from libs.twitter import OAuth, TwitterAPI
 
@@ -60,20 +58,8 @@ def random_description():
 def random_word():
     lst = DBYAML.load('words')
     if lst: return random.choice(lst)
+
     
-    
-def tweet_user_link(name):
-    name = name.encode('utf-8')
-    return """<a href="http://twitter.com/%s" target="twitter">@%s</a>""" % (name, name)
-
-
-def tweet_status_link(user, status_id, caption):
-    user      = user.encode('utf-8')
-    caption   = caption.encode('utf-8')
-    return """<i>(<a href="http://twitter.com/%s/status/%s" target="twitter">%s</a>)</i>""" % \
-        (user, status_id, caption)
-
-
 def random_tweet(via, debug_handler=None, count=1):
     
     conf = DBYAML.load('oauth')
@@ -237,91 +223,8 @@ class MainHandler(webapp.RequestHandler):
 
 
 
-class APIHandler(webapp.RequestHandler):
-    """API"""
-    
-    def get(self, action):
-        if action == 'history':
-            page = int(self.request.get('page', 0))
-            history = []
-            lst = YouHaShockHistory.get_histories(page)
-            for item in lst:
-                from_user = tweet_user_link(item.from_user)
-                to_user   = tweet_user_link(item.to_user  )
-                if isinstance(item.word, unicode):
-                    word = item.word.encode('utf-8')
-                else:
-                    word = item.word
-                link = tweet_status_link(item.to_user, item.status_id, libs.timeago.get_elapsed(item.created))
-                format = '%s が %s に <span class="word">%s</span> といわせた %s'
-                histroy_str = format % (from_user, to_user, word, link)
-                history.append("'%s'" % histroy_str)
-            self.response.out.write('[%s]' % ','.join(history))
-
-
-
-class AdminHandler(webapp.RequestHandler):
-    """管理者用ページ"""
-    
-    def get(self, action):
-
-        action = action.split('/')
-        action, args = action[0], action[1:]
-        
-        if action == 'edit':
-            filelist = [ ent.key().name()[1:] for ent in DBYAML.all() ]
-            html = template.render('tmpl/edit.html', { 'filelist': filelist })
-            self.response.out.write(html)
-            
-        elif action == 'load' and args:
-            key_name = '_%s' % args[0]
-            ent = DBYAML.get_by_key_name(key_name)
-            if ent: self.response.out.write(ent.yaml_text)
-
-        elif action == 'dummy':
-            for i in xrange(50):
-                ent = OAuthRequestToken(key_name='_%s' % i)
-                ent.oauth_token = str(random.getrandbits(64))
-                ent.oauth_token_secret = str(random.getrandbits(64))
-                ent.put()
-                
-        elif action == 'test':
-            testuser = DBYAML.load('testuser')
-            if testuser:
-                ent = OAuthAccessToken()
-                ent.oauth_token = testuser.get('oauth_token')
-                ent.oauth_token_secret = testuser.get('oauth_token_secret')
-                
-                result = random_tweet( via=('testuser', ent), debug_handler=self )
-                if result < 0:
-                    OAuthAccessTokenCount.add_count(result)
-                    
-                    
-    def post(self, action):
-        if action == 'edit':
-            params = dict(self.request.POST)
-            cmd = params.get('submit')
-            if cmd == 'SUBMIT':
-                name = params.get('name')
-                text = params.get('yaml-text')
-                if name and text:
-                    try: DBYAML.save(name, yaml.load(text))
-                    except e: pass
-            elif cmd == 'DELETE':
-                key_name = '_%s' % params.get('name')
-                ent = DBYAML.get_by_key_name(key_name)
-                if ent: ent.delete()
-        self.redirect('/admin/edit/')
-
-
-
-
-
-
 def main():
     application = webapp.WSGIApplication([
-            ('^/api/(.*?)/?$'  , APIHandler  ),
-            ('^/admin/(.*?)/?$', AdminHandler),
             ('^/(.*?)/?$'      , MainHandler ),
             ], debug=True)
     util.run_wsgi_app(application)
