@@ -80,6 +80,7 @@ class OAuthAccessToken(db.Model):
     """OAuth Access Token."""
     oauth_token        = db.StringProperty()
     oauth_token_secret = db.StringProperty()
+    randint  = db.IntegerProperty(default=0)
     created  = db.DateTimeProperty(auto_now_add=True)
     modified = db.DateTimeProperty(auto_now=True)
     

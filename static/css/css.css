@@ -8,11 +8,14 @@ i {
     color: #666
 }
 
+a {
+    border-width: 0px;
+}
+
 i a {
     color: #666;
     text-decoration: none;
 }
-
 
 #header, #body, #footer {
     margin: 10px 20px;
