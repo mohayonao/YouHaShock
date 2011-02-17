@@ -126,11 +126,8 @@ def random_tweet(via, debug_handler=None, count=1):
                 logging.info('tweet failed: invalid access_token %s' % item.oauth_token)
                 item.delete()
                 result -= 1
-            
+                
         else:
-            item.randint = random.randint(0, 1000)
-            item.put() # update
-            
             to_user = api_result.get('user'  , {}).get('screen_name')
             if not to_user: to_user = api_result.get('screen_name', u'unknown')
             if to_user:     to_user = to_user.encode('utf-8')

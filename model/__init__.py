@@ -107,15 +107,16 @@ class OAuthAccessToken(db.Model):
     
     @classmethod
     def get_random_access_token(cls, n=20):
-        count = OAuthAccessTokenCount.get_count()
-        m = count - n
-        if m < 0:
-            offset = 0
-        else:
-            offset = random.randint(0, m)
+
+        for i in xrange(3):
+            a = random.randint(0, 1000)
+            b = random.randint(0, 1000)
+            a, b = min(a, b), max(a, b)
+            if b - a < 100: b = a + 100
             
-        gql = db.GqlQuery('SELECT * FROM OAuthAccessToken')
-        lst = gql.fetch(20, offset)
+            lst = OAuthAccessToken.gql("WHERE randint >= :1 AND randint < :2", a, b).fetch(n)
+            if lst: break
+        
         random.shuffle(lst)
         return lst
 

@@ -117,6 +117,5 @@ class OAuthHandler:
         if not name: return
         
         access_token = OAuthAccessToken.set_access_token(access_url)
-        access_token.put() # update
         
         return name, access_token

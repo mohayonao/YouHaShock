@@ -90,7 +90,7 @@ class TaskHandler(webapp.RequestHandler):
             
         else:
             ent.randint = random.randint(0, 1000)
-            ent.put() # update
+            ent.put()
             return True
 
 
