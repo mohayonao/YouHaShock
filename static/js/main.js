@@ -115,7 +115,7 @@ $(function() {
           var func = (function (name) {
                           return function (e) { open_graph(name, e); };
                       })(name);
-          a.click(func);
+          a.get(0).onclick = func;
       }
       
       $("#graph-close button").click(
