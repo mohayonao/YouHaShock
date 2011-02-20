@@ -102,7 +102,7 @@ class OAuthHandler:
         
         access_url = self.client. \
             get_data_from_signed_url(self.client.access_token_url, request_token)
-        # request_token.delete()
+        request_token.delete()
         
         
         # Access Token

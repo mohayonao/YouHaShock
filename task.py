@@ -51,7 +51,7 @@ class TaskHandler(webapp.RequestHandler):
     def get(self, action):
         if action == 'request':
             expired = datetime.datetime.now() - datetime.timedelta(minutes=10)
-            expired_tokens = OAuthRequestToken.all().filter('created <', expired).fetch(100)
+            expired_tokens = OAuthRequestToken.all().filter('created <', expired).fetch(50)
             for token in expired_tokens:
                 token.delete()
                 
