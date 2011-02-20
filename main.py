@@ -201,18 +201,30 @@ class MainHandler(webapp.RequestHandler):
             handler = libs.auth.OAuthHandler(handler=self, conf=conf)
             users_token = handler.callback()
             if users_token:
-                # random tweet
-                count  = self.session_counter()
-                result = random_tweet(via=users_token, count=count)
-                
-                if result:
-                    # update graph
-                    q = taskqueue.Queue('fastest')
-                    t = taskqueue.Task(url='/task/graph')
-                    q.add(t)
+
+                is_block = False
+                blocklist = DBYAML.load('blocklist')
+                if blocklist:
+                    if users_token._name in blocklist:
+                        is_block = True
+
+                if not is_block:
+                    # random tweet
+                    count  = self.session_counter()
+                    result = random_tweet(via=users_token, count=count)
+
+                    if result:
+                        # update graph
+                        q = taskqueue.Queue('fastest')
+                        t = taskqueue.Task(url='/task/graph')
+                        q.add(t)
+                    else:
+                        errmsg = 'エラーが発生しました。しばらく待ってからもう一度試してみてください。'
+                        logging.error('random tweet error!!')
+                    
                 else:
                     errmsg = 'エラーが発生しました。しばらく待ってからもう一度試してみてください。'
-                    logging.error('random tweet error!!')
+                    logging.warning('blocking %s' % users_token._name)
                     
             else:
                 errmsg = 'エラーが発生しました。しばらく待ってからもう一度試してみてください。'

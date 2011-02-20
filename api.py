@@ -28,7 +28,7 @@ from google.appengine.ext import db
 
 from model import YouHaShockHistory
 from model import UserStatus
-
+from model import DBYAML
 
 
 ################################################################################
@@ -127,20 +127,28 @@ class APIHandler(webapp.RequestHandler):
         
     def get_ranking(self):
         """ランキングを返す"""
-
+        
+        blocklist = DBYAML.load('blocklist')
+        
         def write_user_ranking(type, limit):
             if type == 'call':
-                q = UserStatus.all().order('-call_count')
+                query = UserStatus.all().order('-call_count')
             else:
-                q = UserStatus.all().order('-callee_count')
-            for ent in q.fetch(limit):
+                query = UserStatus.all().order('-callee_count')
+                
+            i = 0
+            for ent in query:
                 name = ent.key().name()[3:]
+                if name in blocklist: continue
+                
                 profile_image_url = ent.profile_image_url
                 if type == 'call':
                     count = ent.call_count
                 else:
                     count = ent.callee_count
                 self.response.out.write("['%s','%s',%d]," % (name, profile_image_url,count))
+                i += 1
+                if i >= limit: break
                 
                 
         try: limit = int(self.request.get('limit', 5))
