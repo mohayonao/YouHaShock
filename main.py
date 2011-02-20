@@ -144,7 +144,8 @@ class MainHandler(webapp.RequestHandler):
     """YouはShock本体"""
     
     def default_page(self, errmsg=None):
-        template_value = dict(errmsg=errmsg)
+        info = DBYAML.load('info')
+        template_value = dict(info=info, errmsg=errmsg)
         
         description = None
         lst = DBYAML.load('description')

@@ -36,9 +36,11 @@
           {{errmsg}}
         </span>
         {% else %}
+        {% if info %}
         <span class="info">
-          お知らせ：飽きたので2011/02/28で終了します。
+          {{info}}
         </span>
+        {% endif %}
         {% endif %}
       </div>
       
