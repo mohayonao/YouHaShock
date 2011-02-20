@@ -56,8 +56,8 @@ class TaskHandler(webapp.RequestHandler):
                 token.delete()
                 
         elif action == 'access':
-            expired = datetime.datetime.now() - datetime.timedelta(hours=4)
-            expired_tokens = OAuthAccessToken.all().filter('modified <', expired).fetch(30)
+            expired = datetime.datetime.now() - datetime.timedelta(hours=6)
+            expired_tokens = OAuthAccessToken.all().filter('modified <', expired).fetch(20)
             
             q = taskqueue.Queue('background')
             for i, token in enumerate(expired_tokens):
@@ -71,9 +71,14 @@ class TaskHandler(webapp.RequestHandler):
             q.add(t)
             
         elif action == 'image':
+            expired = datetime.datetime.now() - datetime.timedelta(days=7)
+            expired_tokens = UserStatus.all().filter('profile_image_updated <', expired).fetch(10)
+            
             q = taskqueue.Queue('background')
-            t = taskqueue.Task(url='/task/image')
-            q.add(t)
+            for i, token in enumerate(expired_tokens):
+                key_name = token.key().name()
+                t = taskqueue.Task(url='/task/image', params=dict(key_name=key_name), countdown=i*2)
+                q.add(t)
             
             
             
@@ -92,33 +97,34 @@ class TaskHandler(webapp.RequestHandler):
                 q.add(t)
                 
         elif action == 'image':
-            res = self.update_image()
-            if res:
-                q = taskqueue.Queue('background')
-                t = taskqueue.Task(url='/task/image')
-                q.add(t)
-                
-                
-    def update_image(self):
-        expired = datetime.datetime.now() - datetime.timedelta(days=2)
-        ent = UserStatus.all().filter('profile_image_updated <', expired).get()
-        if not ent:
-            logging.debug('update_image: None')
-            return False
+            key_name = self.request.get('key_name')
+            self.update_image(key_name)
+            
+            
+    def update_image(self, key_name):
+        ent = UserStatus.get_by_key_name(key_name)
+        if not ent: return
         
         name = ent.key().name()[3:]
         logging.debug('profile_image: %s' % name)
         if not ent.profile_image_url:
-            profile_image_url = self.get_profile_image(name)
-            ent.profile_image_url = profile_image_url
-            logging.debug('profile_image_url: %s' % ent.profile_image_url)
-            if not profile_image_url:
-                logging.warning('profile_image: %s = NONE' % name)
-            
-        ent.profile_image_updated = datetime.datetime.now()
-        ent.put()
-        
-        return True
+            try:
+                profile_image_url = self.get_profile_image(name)
+            except urlfetch.InvalidURLError:
+                logging.warning('deleted user?: %s' % name)
+                ent.profile_image_updated = datetime.datetime.max
+                ent.put()
+            else:
+                ent.profile_image_url = profile_image_url
+                logging.debug('profile_image_url: %s' % ent.profile_image_url)
+                if profile_image_url:
+                    ent.profile_image_url = profile_image_url
+                    ent.profile_image_updated = datetime.datetime.now()
+                    ent.put()
+                else:
+                    logging.warning('profile_image: %s = NONE' % name)
+                    
+        return
     
     
     def update_graph(self):
@@ -165,9 +171,6 @@ class TaskHandler(webapp.RequestHandler):
         
         
     def verify_oauth_token(self, key_name):
-        from libs.twitter import OAuth, TwitterAPI
-        from model import DBYAML
-        
         ent = OAuthAccessToken.get_by_key_name(key_name)
         if not ent: return True
         
@@ -212,10 +215,7 @@ class TaskHandler(webapp.RequestHandler):
         try:
             res = api.show(screen_name=name)
         except urlfetch.DownloadError:
-            return
-        
-        except urlfetch.InvalidURLError:
-            return
+            res = None
         
         if res:
             return res.get('profile_image_url')
