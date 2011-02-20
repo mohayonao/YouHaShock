@@ -18,92 +18,158 @@
 #
 
 import logging
-import datetime, time
+import time
 
 from google.appengine.api import memcache
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import util
 from google.appengine.ext import db
 
-import libs.timeago
-
-
 
 from model import YouHaShockHistory
+from model import UserStatus
 
 
 
 ################################################################################
 ## misc
 ################################################################################
-def tweet_user_link(name):
-    name = name.encode('utf-8')
-    return """<a href="http://twitter.com/%s" target="twitter">@%s</a>""" % (name, name)
-
-
-def tweet_status_link(user, status_id, caption):
-    user      = user.encode('utf-8')
-    caption   = caption.encode('utf-8')
-    return """<i>(<a href="http://twitter.com/%s/status/%s" target="twitter">%s</a>)</i>""" % (user, status_id, caption)
-
-
-
 class APIHandler(webapp.RequestHandler):
     """API"""
-    
+
+    def get_history(self):
+        """履歴を返す"""
+        
+        try: cursor = int(self.request.get('cursor', 0))
+        except ValueError: cursor = 0
+        
+        try: limit = int(self.request.get('limit', 0))
+        except ValueError: limit = 0
+        
+        q = db.Query(YouHaShockHistory)
+        if cursor == 0:
+            limit = 20
+        elif limit:
+            where = 'status_id %s' % ('>' if limit < 0 else '<')
+            q = q.filter(where, cursor)
+            
+        q = q.order('-status_id')
+        
+        self.response.out.write('{')
+        
+        limit = abs(limit)
+        entities = q.fetch(limit + 1)
+        has_next = (len(entities) > limit)
+        
+        self.response.out.write('n:%s,' % ('true' if has_next else 'false'))
+        
+        self.response.out.write('"list":[')            
+        for ent in entities[:limit]:
+            id = ent.status_id
+            d =  time.mktime(ent.created.timetuple())
+            self.response.out.write('["%s","%s","%s","%s",%s],' % (ent.from_user, ent.to_user, ent.word, id, d))
+            
+        self.response.out.write(']}')
+        
+        
+    def get_image_url(self):
+        """アイコン画像のURLを返す"""
+        
+        name = self.request.get('name')
+        if not name: return 'null'
+
+        key_name = 'at_%s' % name
+        url = memcache.get(key=key_name)
+        if not url:
+            ent = UserStatus.get_by_key_name(key_name)
+            if not ent: return 'null'
+            url = ent.profile_image_url
+            memcache.set(key=key_name, value=url)
+        self.response.out.write(url)
+        
+        
+    def get_graph(self):
+        """ユーザーグラフを返す"""
+        
+        name = self.request.get('name')
+        if not name: return 'null'
+        
+        key_name = 'at_%s' % name
+        ent = UserStatus.get_by_key_name(key_name)
+        if not ent: return 'null'
+
+
+        self.response.out.write('{')
+        self.response.out.write('img:"%s",' % (ent.profile_image_url))
+        self.response.out.write('call:%d,callee:%d,' % (ent.call_count, ent.callee_count))
+        
+        if ent.graph:
+            try: graph = eval(ent.graph)
+            except TypeError: graph = { }
+            self.response.out.write('graph:{')
+            
+            call = graph.get('call', {})
+            self.response.out.write('call:{')
+            for k, v in call.iteritems():
+                self.response.out.write('"%s":%s,' % (k, v))
+            self.response.out.write('},')
+            
+            callee = graph.get('callee', {})
+            self.response.out.write('callee:{')
+            for k, v in callee.iteritems():
+                self.response.out.write('"%s":%s,' % (k, v))
+            self.response.out.write('},')
+            
+            self.response.out.write('}')
+            
+        self.response.out.write('}')
+        
+        
+    def get_ranking(self):
+        """ランキングを返す"""
+
+        def write_user_ranking(type, limit):
+            if type == 'call':
+                q = UserStatus.all().order('-call_count')
+            else:
+                q = UserStatus.all().order('-callee_count')
+            for ent in q.fetch(limit):
+                name = ent.key().name()[3:]
+                profile_image_url = ent.profile_image_url
+                if type == 'call':
+                    count = ent.call_count
+                else:
+                    count = ent.callee_count
+                self.response.out.write("['%s','%s',%d]," % (name, profile_image_url,count))
+                
+                
+        try: limit = int(self.request.get('limit', 5))
+        except ValueError: limit = 5
+        
+        self.response.out.write('{')
+        self.response.out.write('call:[')
+        write_user_ranking('call', limit)
+        self.response.out.write('],')
+        
+        self.response.out.write('callee:[')
+        write_user_ranking('callee', limit)
+        self.response.out.write('],')
+        
+        self.response.out.write('}')
+        
+        
+        
     def get(self, action):
         if action == 'history2':
+            self.get_history()
+        elif action == 'image':
+            self.get_image_url()
+        elif action == 'graph':
+            self.get_graph()
+        elif action == 'ranking':
+            self.get_ranking()
             
-            try: cursor = int(self.request.get('cursor', 0))
-            except ValueError: cursor = 0
             
-            try: limit = int(self.request.get('limit', 0))
-            except ValueError: limit = 0
-            
-            q = db.Query(YouHaShockHistory)
-            if cursor == 0:
-                limit = 20
-            elif limit:
-                where = 'status_id %s' % ('>' if limit < 0 else '<')
-                q = q.filter(where, cursor)
-                
-            q = q.order('-status_id')
-            
-            self.response.out.write('{')
-
-            limit = abs(limit)
-            entities = q.fetch(limit + 1)
-            has_next = (len(entities) > limit)
-            
-            self.response.out.write('n:%s,' % ('true' if has_next else 'false'))
-            
-            self.response.out.write('"list":[')            
-            for ent in entities[:limit]:
-                id = ent.status_id
-                d =  time.mktime(ent.created.timetuple())
-                self.response.out.write('["%s","%s","%s","%s",%s],' % (ent.from_user, ent.to_user, ent.word, id, d))
-                
-            self.response.out.write(']}')
-            
-        elif action == 'history':
-            page = int(self.request.get('page', 0))
-            history = []
-            lst = YouHaShockHistory.get_histories(page)
-            for item in lst:
-                from_user = tweet_user_link(item.from_user)
-                to_user   = tweet_user_link(item.to_user  )
-                if isinstance(item.word, unicode):
-                    word = item.word.encode('utf-8')
-                else:
-                    word = item.word
-                link = tweet_status_link(item.to_user, item.status_id, libs.timeago.get_elapsed(item.created))
-                format = '%s が %s に <span class="word">%s</span> といわせた %s'
-                histroy_str = format % (from_user, to_user, word, link)
-                history.append("'%s'" % histroy_str)
-            self.response.out.write('[%s]' % ','.join(history))
-
-
-
 def main():
     application = webapp.WSGIApplication([
             ('^/api/(.*?)/?$', APIHandler),

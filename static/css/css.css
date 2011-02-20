@@ -1,4 +1,4 @@
-body, h1, div {
+body, h1, div, ul, li {
     margin: 0px;
     padding: 0px;
 }
@@ -38,9 +38,10 @@ i a {
 .box {
     border: solid 1px darkgray;
     width: 688px;
-    padding: 10px 20px;    
+    margin: 0px;
+    padding: 10px 20px;
     font-size: 0.8em;
-    margin-bottom: 25px;
+    margin-bottom: 10px;
 }
 
 .tips {
@@ -61,6 +62,16 @@ i a {
     vertical-align: text-bottom;
 }
 
+#v-progress {
+    font-size: 0.8em;
+    display: none;
+}
+
+#v-progress img {
+    padding: 0px 10px;
+    vertical-align: text-bottom;
+
+}
 
 .btn {
     background: rgb(224, 224, 224);
@@ -68,10 +79,11 @@ i a {
     background-image: -webkit-gradient(linear, left top, left bottom, color-stop(0, rgba(255, 255, 255, 0.5)), color-stop(1, rgba(255, 255, 255, 0)));
     background-image: -moz-linear-gradient(top, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0))
     
-    -webkit-border-bottom-left-radius: 4px 4px;
-    -webkit-border-bottom-right-radius: 4px 4px;
-    -webkit-border-top-left-radius: 4px 4px;
-    -webkit-border-top-right-radius: 4px 4px;
+    border-bottom-left-radius: 4px 4px;
+    border-bottom-right-radius: 4px 4px;
+    border-top-left-radius: 4px 4px;
+    border-top-right-radius: 4px 4px;
+    
     border-bottom-color: rgb(204, 204, 204);
     border-style: solid;
     border-width: 1px;
@@ -88,11 +100,148 @@ i a {
     height: 35px;
 }
 
-.btn:active {
-    background: rgb(192, 192, 192);
-}
 
 .btn a {
     color: black;
     text-decoration: none;
+}
+
+
+.enabled-btn:active {
+    background: rgb(192, 192, 192);
+}
+
+.disabled-btn {
+    color: rgb(160, 160, 160) !important;
+}
+
+.disable-btn:active {
+    background: rgb(224, 224, 224) !important;
+}
+
+
+#history-list {
+    margin-bottom: 10px;
+}
+
+
+#user-graph {
+    position: absolute;
+    
+    background: rgb(224, 224, 224);
+    width: 410px;
+    padding: 5px;
+    display: none;
+
+    border-style: solid;
+    border-width: 1px;
+    border-color: rgb(192, 192, 192);
+    box-shadow: rgb(128, 128, 128) 5px 5px 10px;
+    -webkit-box-shadow: rgb(128, 128, 128) 5px 5px 10px;
+ 
+}
+
+#user-graph img {
+    width: 64px;
+    height: 64px;
+    margin: 10px 5px 5px;
+}
+
+#username {
+    font-size: 1.3em;
+    font-weight: bold;
+    padding: 10px 0px 0px 0px;
+}
+
+#count {
+    font-size: 0.8em;
+}
+
+#count td {
+    padding: 0px 15px 0px 0px;
+    text-align: left;
+}
+
+.opposite {
+    margin: 5px;
+}
+
+.opposite label {
+    font-size: 0.8em;
+    
+}
+
+#call img {
+    width: 24px;
+    height: 24px;
+    margin: 2px;
+}
+
+#callee img {
+    width: 24px;
+    height: 24px;
+    margin: 2px;
+}
+
+#graph-close {
+    margin-right: 5px;
+    text-align: right;
+}
+
+#graph-close button {
+    margin: 0px;
+}
+
+.info {
+    color: magenta;
+}
+
+#navitab {
+    list-style: none;
+    margin: 0px;
+    padding: 0px;
+     height: 20px;
+}
+
+#navitab li {
+    display: inline;
+    height: 20px;
+    
+    margin: 0px;
+    padding: 5px 10px 0px;
+    
+    font-size: 0.8em;
+    width: 150px;
+    
+    border: solid 1px darkgray;
+    border-top-right-radius: 4px 4px;
+    border-top-left-radius: 4px 4px;
+    
+    cursor: pointer;
+ }
+
+#ranking img {
+    width: 36px;
+    height: 36px;
+}
+
+#ranking table td {
+    width: 400px;
+}
+
+#ranking ol {
+    margin: 0px;
+    padding: 0px;
+    list-style: none;
+}
+
+#ranking ol span {
+    font-weight: bold;
+    padding: 0px 15px;
+}
+
+#ranking ol a {
+    font-size: 1.25em;
+    font-weight: bold;
+    padding: 0px 15px;
 }

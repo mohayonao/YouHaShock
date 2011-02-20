@@ -1,14 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import os
 import time
-import yaml
 import hmac
 import random
 import hashlib
 import urllib
-import random
 import logging
 
 from google.appengine.ext import db
@@ -22,9 +19,6 @@ from model import OAuthRequestToken, OAuthAccessToken
 ################################################################################
 def encode(text):
     return urllib.quote(str(text), '')
-
-
-
 
 
 ################################################################################
@@ -93,7 +87,8 @@ class OAuthHandler:
         self.client  = OAuthClient(conf)
         
     def login(self):
-        self.handler.redirect(self.client.get_request_url())
+        url = self.client.get_request_url()
+        self.handler.redirect(url)
         
     def callback(self):
         oauth_token = self.handler.request.get('oauth_token')
@@ -101,21 +96,25 @@ class OAuthHandler:
         
         # Request Token
         request_token = OAuthRequestToken.get_request_token(oauth_token)
-        if not request_token: return
+        if not request_token:
+            logging.warning('callback: None Request Token')
+            return
         
         access_url = self.client. \
             get_data_from_signed_url(self.client.access_token_url, request_token)
-        request_token.delete()
+        # request_token.delete()
         
         # Access Token
         try:
             params = dict(token.split('=') for token in access_url.split('&'))
         except:
+            logging.warning('callback: Invalid URL=%s' % access_url)
             return
         
         name = params.get('screen_name')
-        if not name: return
+        if not name:
+            logging.warning('callback: screen_name is None')
+            return
         
         access_token = OAuthAccessToken.set_access_token(access_url)
-        
         return name, access_token

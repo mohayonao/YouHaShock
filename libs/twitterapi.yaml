@@ -1,5 +1,7 @@
 'http://api.twitter.com/1':
   'statuses':
     - [ 'tweet' , 'POST', 'update'            , 'status' ]
+  'users':
+    - [ 'show'  , 'GET' , 'show'              , '' ]
   'account':
     - [ 'verify', 'GET' , 'verify_credentials', '' ]

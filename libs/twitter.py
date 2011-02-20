@@ -107,7 +107,6 @@ class TwitterAPI:
     def GET(self, url, **extra_params):
         url = self.get_signed_url(url, self.oauth, 'GET', **extra_params);
         fetch_params = dict(url=url, method=urlfetch.GET)
-
         fetch_result = urlfetch.fetch(deadline=15, **fetch_params)
         if fetch_result.status_code == 200:
             return simplejson.loads(fetch_result.content)

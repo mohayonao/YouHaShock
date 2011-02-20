@@ -20,14 +20,17 @@
 import yaml
 import logging
 
-from google.appengine.dist import use_library
-use_library('django', '1.2')
+# from google.appengine.dist import use_library
+# use_library('django', '1.2')
 
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import util
 from google.appengine.ext.webapp import template
 
 from model import DBYAML
+
+
+from libs.twitter import OAuth, TwitterAPI
 
 
 class AdminHandler(webapp.RequestHandler):
@@ -49,6 +52,11 @@ class AdminHandler(webapp.RequestHandler):
             if ent: self.response.out.write(ent.yaml_text)
             
             
+        elif action == 'test':
+            name = '01208888888'
+            self.get_profile_image(name)
+            
+            
     def post(self, action):
         if action == 'edit':
             params = dict(self.request.POST)
@@ -66,6 +74,11 @@ class AdminHandler(webapp.RequestHandler):
                 ent = DBYAML.get_by_key_name(key_name)
                 if ent: ent.delete()
         self.redirect('/admin/edit/')
+        
+        
+
+        
+
 
 
 

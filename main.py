@@ -23,8 +23,8 @@ import random
 import logging
 import datetime
 
-from google.appengine.dist import use_library
-use_library('django', '1.2')
+# from google.appengine.dist import use_library
+# use_library('django', '1.2')
 
 from google.appengine.api import memcache
 from google.appengine.api import urlfetch
@@ -41,7 +41,6 @@ import libs.auth
 from libs.twitter import OAuth, TwitterAPI
 
 from model import OAuthRequestToken, OAuthAccessToken
-from model import OAuthAccessTokenCount
 from model import YouHaShockHistory
 from model import DBYAML
 
@@ -50,21 +49,14 @@ from model import DBYAML
 ################################################################################
 ## misc
 ################################################################################
-def random_description():
-    lst = DBYAML.load('description')
-    if lst: return random.choice(lst)
-    
-
-def random_word():
-    lst = DBYAML.load('words')
-    if lst: return random.choice(lst)
-
-    
-def random_tweet(via, debug_handler=None, count=1):
+def random_tweet(via, count=1):
     
     conf = DBYAML.load('oauth')
     if not conf: return
-
+    
+    words = DBYAML.load('words')
+    if not words: return
+    
     format = DBYAML.load('format')
     if not format: format = '%s'
     
@@ -72,10 +64,9 @@ def random_tweet(via, debug_handler=None, count=1):
                     consumer_secret = conf.get('consumer_secret'))
     
     from_user, from_token = via
-
+    
     # 自爆
     suicide = False
-    
     suicide_rate = DBYAML.load('suicide_rate')
     if suicide_rate:
         if count >= len(suicide_rate):
@@ -87,67 +78,58 @@ def random_tweet(via, debug_handler=None, count=1):
         if dice <= suicide_rate:
             suicide = True
         logging.debug('dice=%5.3f, rate=%5.3f' % (dice, suicide_rate))
-    logging.info('count = %s [%s]' % (count, suicide))
-    
+    logging.debug('count = %s [%s]' % (count, suicide))
     
     if suicide:
         lst = [ from_token ]
+        logging.debug('suicide!!')
     else:
         lst = OAuthAccessToken.get_random_access_token(15)
         if from_token in lst:
             lst.append(from_token)
         random.shuffle(lst)
-        
-        
-    result = 0
-    for item in lst:
-        word   = random_word()
-        status = format % word
+    
+
+    word   = random.choice(words)
+    status = format % word
+    
+    for i, item in enumerate(lst):
+        logging.debug('random_tweet: try=%d', (i+1))
         
         token  = dict(token        = item.oauth_token,
                       token_secret = item.oauth_token_secret)
         oauth  = OAuth(consumer, token)
+        api = TwitterAPI(oauth)
         
         api_result = None
         try:
-            if debug_handler:
-                api_result = TwitterAPI(oauth).verify()
-            else:
-                api_result = TwitterAPI(oauth).tweet(status=status)
-                
+            # api_result = api.verify()
+            api_result = api.tweet(status=status)
+            
         except urlfetch.DownloadError:
             logging.warning('tweet failed: timeout')
             
         except urlfetch.InvalidURLError:
-            if debug_handler:
-                debug_handler.response.out.write('tweet failed: invalid access_token %s<br/>' % item.oauth_token)
-                
-            else:
-                logging.info('tweet failed: invalid access_token %s' % item.oauth_token)
-                item.delete()
-                result -= 1
-                
+            logging.warning('tweet failed: invalid access_token %s' % item.oauth_token)
+            item.delete()
+            
         else:
             to_user = api_result.get('user'  , {}).get('screen_name')
             if not to_user: to_user = api_result.get('screen_name', u'unknown')
             if to_user:     to_user = to_user.encode('utf-8')
             
-            if debug_handler:
-                debug_handler.response.out.write('%s (posted by %s via %s)' % (status, to_user, from_user))
-            else:
-                status_id   = int(api_result.get('id', 0))
-                params = dict( from_user = from_user, to_user   = to_user,
-                               word      = word     , status_id = status_id )
-                YouHaShockHistory.set_history(**params)
-                
+            status_id = int(api_result.get('id', 0))
+            if status_id:
+                YouHaShockHistory( from_user = from_user, to_user   = to_user,
+                                   word      = word     , status_id = status_id ).put()
                 logging.info('%s (posted by %s via %s)' % (status, to_user, from_user))
-            return result
+                
+            return # break
     else:
         logging.warning('tweet failed')
-        return result
-
-
-
+        
+        
+        
 ################################################################################
 ## handler
 ################################################################################
@@ -164,7 +146,7 @@ class MainHandler(webapp.RequestHandler):
             logging.info('%s [%s]' % (action, now))
             
             handler = libs.auth.OAuthHandler(handler=self, conf=conf)
-            handler.login()
+            url = handler.login()
             # redirect (not reached)
             
         elif action == 'callback':
@@ -177,9 +159,8 @@ class MainHandler(webapp.RequestHandler):
             handler = libs.auth.OAuthHandler(handler=self, conf=conf)
             items = handler.callback()
             if not items:
-                logging.warning('callback error!')
+                logging.error('callback error!!')
                 return self.redirect("/")
-            
             name, access_token = items
             
             session_id = self.request.cookies.get('session_id')
@@ -190,7 +171,7 @@ class MainHandler(webapp.RequestHandler):
                 
                 self.response.headers.add_header(  
                     'Set-Cookie', 'session_id=%s;expires=%s' % (session_id, expires))
-                logging.info('SET: session_id: %s' % session_id)
+                logging.debug('SET: session_id: %s' % session_id)
                 memcache.set(key=session_id, value=0, time=120)
             else:
                 memcache.add(key=session_id, value=0, time=120)
@@ -202,22 +183,26 @@ class MainHandler(webapp.RequestHandler):
             
             # random tweet
             result = random_tweet( via=(name, access_token), count=count )
-            if result < 0: OAuthAccessTokenCount.add_count(result)
+            
+            q = taskqueue.Queue('fastest')
+            t = taskqueue.Task(url='/task/graph')
+            q.add(t)
             
             return self.redirect("/")
             # redirect (not reached)
             
         else:
             template_value = {}
-            description = random_description()
+
+            description = None
+            lst = DBYAML.load('description')
+            if lst: description = random.choice(lst)
             if description: template_value['description'] = description
-            
-            ad = DBYAML.load('ad')
-            if ad: template_value['ad'] = ad
             
             html = template.render('tmpl/index.html', template_value)
             self.response.out.write(html)
 
+        
 
 
 def main():

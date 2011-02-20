@@ -1,8 +1,17 @@
 cron:
-- description: delete expired tokens
+- description: verify expired tokens
   url: /cron/access
-  schedule: every 5 minutes
-
+  schedule: every 4 hours
+  
 - description: delete expired tokens
   url: /cron/request
-  schedule: every 5 minutes
+  schedule: every 30 minutes
+  
+- description: update graph
+  url: /cron/graph
+  schedule: every 30 minutes
+
+- description: update image
+  url: /cron/image
+  schedule: every day 00:00
+

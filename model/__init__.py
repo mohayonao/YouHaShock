@@ -42,40 +42,6 @@ class OAuthRequestToken(db.Model):
         return token
 
 
-
-class OAuthAccessTokenCount(db.Model):
-    count   = db.IntegerProperty()
-    updated = db.DateTimeProperty(auto_now=True)
-    
-    @classmethod
-    def get_count(cls):
-        entity = OAuthAccessTokenCount.get_by_key_name('_')
-        if entity:
-            return entity.count
-        else:
-            return 0
-
-    @classmethod
-    def set_count(cls, val):
-        entity = OAuthAccessTokenCount.get_by_key_name('_')
-        if entity:
-            entity.count = val
-        else:
-            entity = OAuthAccessTokenCount(key_name='_', count=val)
-        entity.put()            
-        
-    @classmethod
-    def add_count(cls, val):
-        entity = OAuthAccessTokenCount.get_by_key_name('_')
-        if entity:
-            entity.count += val
-        else:
-            if val < 0: val = 0
-            entity = OAuthAccessTokenCount(key_name='_', count=val)
-        entity.put()            
-    
-
-
 class OAuthAccessToken(db.Model):
     """OAuth Access Token."""
     oauth_token        = db.StringProperty()
@@ -87,6 +53,7 @@ class OAuthAccessToken(db.Model):
     @classmethod
     def get_access_token(cls, name):
         key_name = '_%s' % name
+        logging.error('get_access_token: call!?')
         return OAuthAccessToken.get_by_key_name(key_name)
     
     
@@ -100,7 +67,6 @@ class OAuthAccessToken(db.Model):
             token.oauth_token_secret = params['oauth_token_secret']
         else:
             token = OAuthAccessToken(key_name=key_name, **params)
-            OAuthAccessTokenCount.add_count(1)
         token.put()
         return token
     
@@ -129,17 +95,15 @@ class YouHaShockHistory(db.Model):
     status_id = db.IntegerProperty()
     created = db.DateTimeProperty(auto_now_add=True)
     
-    @classmethod
-    def set_history(cls, **params):
-        YouHaShockHistory(**params).put()
-        
-        
-    @classmethod
-    def get_histories(cls, page):
-        gql = db.GqlQuery('SELECT * FROM YouHaShockHistory ORDER BY created DESC')
-        lst = gql.fetch(15, page * 15)
-        return lst
 
+class UserStatus(db.Model):
+    profile_image_url = db.StringProperty()
+    profile_image_updated = db.DateTimeProperty()
+    call_count   = db.IntegerProperty(default=0)
+    callee_count = db.IntegerProperty(default=0)
+    graph    = db.TextProperty()
+    modified = db.DateTimeProperty(auto_now=True)
+    
 
 
 class DBYAML(db.Model):

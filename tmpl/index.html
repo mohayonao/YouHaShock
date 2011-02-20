@@ -21,7 +21,7 @@
       <span class="description">{{description}}</span>
     </div>
     <div id="body">
-      <a href="verify/"><button class="btn">使う</button></a>
+      <button id="use" class="btn enabled-btn">使う</button><span id="v-progress"><img src="progress.gif"/>処理中...</span>
       <div class="box tips">
         使い方
         <ol>
@@ -31,17 +31,66 @@
           <li>その後、誰かが同じように「使う」た時に、あなたが「ひでぶ」とか言うかもしれません。</li>
           <li>飽きたら速やかに<a href="http://twitter.com/settings/connections" target="twitter">認証を解除</a>したほうがいいです。</li>
         </ol>
+        <span class="info">
+          お知らせ：ユーザ名をクリックすると戦歴が表示されるようになりました。
+        </span>
       </div>
-      <div id="history" class="box">
-        <div id="history-list"><div id="head"></div><div id="tail"></div></div>
-        <a href="javascript:void(0)" id="history-more-see"><b>もっと見る</b></a><img id="progress" src="progress.gif"/>
+      
+      <div>
+        <ul id="navitab">
+          <li id="tab-history">履歴</li>
+          <li id="tab-ranking">ランキング</li>
+        </ul>
+        <div class="box">
+          <div id="history">
+            <div id="history-list"><div></div></div>
+            <a href="javascript:void(0)" id="history-more-see"><b>もっと見る</b></a><img id="progress" src="progress.gif"/>
+          </div>
+          <div id="ranking">
+            <table border="0" cellspacing="0" cellpadding="0">
+              <tr>
+                <td>
+                  <label>秘孔を突かれまくっている人たち</label>
+                  <ol id="ranking-callee"></ol>
+                </td>
+                <td>
+                  <label>秘孔を突きまくっている人たち</label>
+                  <ol id="ranking-call"></ol>
+                </td>
+              </tr>
+            </table>
+          </div>
+        </div>
       </div>
-      {{ad|safe}}
+      
+      <div id="user-graph">
+        <table border="0" cellspacing="0" cellpadding="0">
+          <tr>
+            <td rowspan="2"><img id="usericon"/></td>
+            <td colspan="2" id="username">UserName</td>
+          </tr>
+          <tr id="count">
+            <td>秘孔を突いた数: <span id="call-count">0</span></td>
+            <td>秘孔を突かれた数: <span id="callee-count">0</span></td>
+          </tr>
+        </table>
+        <div class="opposite">
+          <label>この人たちの秘孔を突いた</label>
+          <div id="call"></div>
+        </div>
+        <div class="opposite">
+          <label>この人たちから秘孔を突かれた</label>
+          <div id="callee"></div>
+        </div>
+        <div id="graph-close"><button>閉じる</button></div>
+      </div>
     </div>
+    
     <div id="footer">
       {% now "Y" %} <a href="http://twitter.com/mohayonao" target="twitter">@mohayonao</a> / Source Code on <a href="https://github.com/mohayonao/YouHaShock">GitHub</a>
     </div>
   </body>
   <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js"></script>
+  <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.9/jquery-ui.min.js"></script>
   <script type="text/javascript" src="main.js"></script>
 </html>
