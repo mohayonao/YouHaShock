@@ -63,7 +63,8 @@ def random_tweet(via, count=1):
     consumer = dict(consumer_key    = conf.get('consumer_key'   ),
                     consumer_secret = conf.get('consumer_secret'))
     
-    from_user, from_token = via
+    from_token = via
+    from_user  = from_token._name
     
     # 自爆
     suicide = False
@@ -82,14 +83,14 @@ def random_tweet(via, count=1):
     
     if suicide:
         lst = [ from_token ]
-        logging.debug('suicide!!')
+        logging.debug('suicide!!!!')
     else:
         lst = OAuthAccessToken.get_random_access_token(15)
         if from_token in lst:
             lst.append(from_token)
         random.shuffle(lst)
-    
-
+        
+        
     word   = random.choice(words)
     status = format % word
     
@@ -124,6 +125,13 @@ def random_tweet(via, count=1):
                                    word      = word     , status_id = status_id ).put()
                 logging.info('%s (posted by %s via %s)' % (status, to_user, from_user))
                 
+            item.randint = random.randint(0, 1000)
+            item.put()
+            
+            if item != from_token:
+                from_token.randint = random.randint(0, 1000)
+                from_token.put()
+            
             return # break
     else:
         logging.warning('tweet failed')
@@ -135,6 +143,40 @@ def random_tweet(via, count=1):
 ################################################################################
 class MainHandler(webapp.RequestHandler):
     """YouはShock本体"""
+    
+    def default_page(self):
+        template_value = {}
+        
+        description = None
+        lst = DBYAML.load('description')
+        if lst: description = random.choice(lst)
+        if description: template_value['description'] = description
+        
+        html = template.render('tmpl/index.html', template_value)
+        self.response.out.write(html)
+        
+        
+    def session_counter(self):
+        """連打用のカウンタ"""
+        session_id = self.request.cookies.get('session_id')
+        if session_id is None:
+            session_id = str(random.getrandbits(64))
+            expires = datetime.datetime.now() + datetime.timedelta(hours=1)
+            expires = expires.strftime('%a, %d %b %Y %H:%M:%S GMT')
+
+            self.response.headers.add_header(  
+                'Set-Cookie', 'session_id=%s;expires=%s' % (session_id, expires))
+            logging.debug('SET: session_id: %s' % session_id)
+
+        memcache.add(key=session_id, value=0, time=300)
+        count = memcache.incr(session_id)
+        if count is None:
+            count = 1
+            logging.warning('memcache replace')
+            memcache.set(key=session_id, value=1, time=120)
+
+        return count
+    
     
     def get(self, action):
         
@@ -157,51 +199,22 @@ class MainHandler(webapp.RequestHandler):
             logging.info('%s [%s]' % (action, now))
             
             handler = libs.auth.OAuthHandler(handler=self, conf=conf)
-            items = handler.callback()
-            if not items:
-                logging.error('callback error!!')
-                return self.redirect("/")
-            name, access_token = items
-            
-            session_id = self.request.cookies.get('session_id')
-            if session_id is None:
-                session_id = str(random.getrandbits(64))
-                expires = datetime.datetime.now() + datetime.timedelta(minutes=5)
-                expires = expires.strftime('%a, %d %b %Y %H:%M:%S GMT')
+            users_token = handler.callback()
+            if users_token:
+                # random tweet
+                count  = self.session_counter()
+                result = random_tweet(via=users_token, count=count)
                 
-                self.response.headers.add_header(  
-                    'Set-Cookie', 'session_id=%s;expires=%s' % (session_id, expires))
-                logging.debug('SET: session_id: %s' % session_id)
-                memcache.set(key=session_id, value=0, time=120)
+                # update graph
+                q = taskqueue.Queue('fastest')
+                t = taskqueue.Task(url='/task/graph')
+                q.add(t)
+                
             else:
-                memcache.add(key=session_id, value=0, time=120)
-            count = memcache.incr(session_id)
-            if count is None:
-                count = 1
-                logging.warning('memcache replace')
-                memcache.set(key=session_id, value=1, time=120)
+                logging.error('callback error!!')
+                
             
-            # random tweet
-            result = random_tweet( via=(name, access_token), count=count )
-            
-            q = taskqueue.Queue('fastest')
-            t = taskqueue.Task(url='/task/graph')
-            q.add(t)
-            
-            return self.redirect("/")
-            # redirect (not reached)
-            
-        else:
-            template_value = {}
-
-            description = None
-            lst = DBYAML.load('description')
-            if lst: description = random.choice(lst)
-            if description: template_value['description'] = description
-            
-            html = template.render('tmpl/index.html', template_value)
-            self.response.out.write(html)
-
+        self.default_page()
         
 
 

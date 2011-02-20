@@ -104,6 +104,7 @@ class OAuthHandler:
             get_data_from_signed_url(self.client.access_token_url, request_token)
         # request_token.delete()
         
+        
         # Access Token
         try:
             params = dict(token.split('=') for token in access_url.split('&'))
@@ -117,4 +118,6 @@ class OAuthHandler:
             return
         
         access_token = OAuthAccessToken.set_access_token(access_url)
-        return name, access_token
+        access_token._name = name
+        
+        return access_token
