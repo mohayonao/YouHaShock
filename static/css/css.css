@@ -196,6 +196,11 @@ i a {
     color: magenta;
 }
 
+.errmsg {
+    color: red;
+    font-weight: bold;
+}
+
 #navitab {
     list-style: none;
     margin: 0px;

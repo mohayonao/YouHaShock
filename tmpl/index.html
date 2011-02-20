@@ -31,9 +31,15 @@
           <li>その後、誰かが同じように「使う」た時に、あなたが「ひでぶ」とか言うかもしれません。</li>
           <li>飽きたら速やかに<a href="http://twitter.com/settings/connections" target="twitter">認証を解除</a>したほうがいいです。</li>
         </ol>
+        {% if errmsg %}
+        <span class="errmsg">
+          {{errmsg}}
+        </span>
+        {% else %}
         <span class="info">
           お知らせ：ユーザ名をクリックすると戦歴が表示されるようになりました。
         </span>
+        {% endif %}
       </div>
       
       <div>

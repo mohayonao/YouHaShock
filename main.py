@@ -132,10 +132,9 @@ def random_tweet(via, count=1):
                 from_token.randint = random.randint(0, 1000)
                 from_token.put()
             
-            return # break
-    else:
-        logging.warning('tweet failed')
-        
+            return True # break
+    return False
+
         
         
 ################################################################################
@@ -144,8 +143,8 @@ def random_tweet(via, count=1):
 class MainHandler(webapp.RequestHandler):
     """YouはShock本体"""
     
-    def default_page(self):
-        template_value = {}
+    def default_page(self, errmsg=None):
+        template_value = dict(errmsg=errmsg)
         
         description = None
         lst = DBYAML.load('description')
@@ -180,6 +179,7 @@ class MainHandler(webapp.RequestHandler):
     
     def get(self, action):
         
+        errmsg = None
         if action == 'verify':
             conf = DBYAML.load('oauth')
             if not conf: return
@@ -205,16 +205,20 @@ class MainHandler(webapp.RequestHandler):
                 count  = self.session_counter()
                 result = random_tweet(via=users_token, count=count)
                 
-                # update graph
-                q = taskqueue.Queue('fastest')
-                t = taskqueue.Task(url='/task/graph')
-                q.add(t)
-                
+                if result:
+                    # update graph
+                    q = taskqueue.Queue('fastest')
+                    t = taskqueue.Task(url='/task/graph')
+                    q.add(t)
+                else:
+                    errmsg = 'エラーが発生しました。しばらく待ってからもう一度試してみてください。'
+                    logging.error('random tweet error!!')
+                    
             else:
+                errmsg = 'エラーが発生しました。しばらく待ってからもう一度試してみてください。'
                 logging.error('callback error!!')
                 
-            
-        self.default_page()
+        self.default_page(errmsg=errmsg)
         
 
 
