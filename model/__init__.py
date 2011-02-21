@@ -98,31 +98,102 @@ class DBYAML(db.Model):
     yaml_text = db.TextProperty()
     created   = db.DateTimeProperty(auto_now_add=True)
     
+    _settings  = None
+
     @classmethod
-    def load(cls, name):
-        key_name = '_%s' % name
-        entity = DBYAML.get_by_key_name(key_name)
-        result = None
+    def init(cls):
+        entity = DBYAML.get_by_key_name('settings')
         if entity:
             try:
-                result = yaml.load(entity.yaml_text)
+                cls._settings = yaml.load(entity.yaml_text)
             except yaml.parser.ParserError:
-                logging.warning('YAML ParseError: %s.yaml' % name)
+                cls._settings = {}
+                logging.error('YAML ParseError!')
         else:
-            logging.warning('%s is not in DBYAML' % name)
-        return result
+            cls._settings = {}
+            logging.error('setting YAML is not existed!')
     
     
     @classmethod
-    def save(cls, name, params):
-        key_name = '_%s' % name
-        yaml_text = yaml.safe_dump(params, encoding='utf8',
-                     allow_unicode=True, default_flow_style=False)
+    def load(cls, name):
+        if cls._settings is None:
+            cls.init()
+        
+        if isinstance(cls._settings, dict):
+            return cls._settings.get(name)
+        
+        
+    @classmethod
+    def save(cls, name, text):
+        if cls._settings is None:
+            cls.init()
+        
+        if not isinstance(cls._settings, dict):
+            return
+        
+        try:
+            params = yaml.load(text)
+        except:
+            logging.error('YAML parse error! %s' % text)
+            return
+        
+        cls._settings[name] = params
+        
+        entity = DBYAML.get_or_insert('settings')
+        yaml_text = yaml.safe_dump(cls._settings,
+                                   encoding='utf8',
+                                   allow_unicode=True,
+                                   default_flow_style=False)
         yaml_text = yaml_text.decode('utf-8')
-        entity = DBYAML.get_by_key_name(key_name)
-        if entity:
-            entity.yaml_text = yaml_text
-        else:
-            entity = DBYAML(key_name=key_name, yaml_text=yaml_text)
+        
+        entity.yaml_text = yaml_text
         entity.put()
         
+        
+    @classmethod
+    def delete(cls, name):
+        if cls._settings is None:
+            cls.init()
+            
+        if not isinstance(cls._settings, dict):
+            return
+        
+        if name not in cls._settings:
+            return
+        
+        del cls._settings[name]
+            
+        entity = DBYAML.get_or_insert('settings')
+        yaml_text = yaml.safe_dump(cls._settings,
+                                   encoding='utf8',
+                                   allow_unicode=True,
+                                   default_flow_style=False)
+        yaml_text = yaml_text.decode('utf-8')
+        
+        entity.yaml_text = yaml_text
+        entity.put()
+    
+    
+    @classmethod
+    def catalog(cls):
+        settings = DBYAML.get_by_key_name('settings')
+        if settings:
+            filelist = yaml.load(settings.yaml_text).keys()
+            filelist.sort()
+            return filelist
+        else:
+            return []
+        
+        
+    @classmethod
+    def loadtext(cls, name):
+        if cls._settings is None:
+            cls.init()
+        
+        data = cls._settings.get(name)
+        if data:
+            text = yaml.safe_dump(data, encoding='utf8',
+                                  allow_unicode=True,
+                                  default_flow_style=False)
+            return text
+        return ''

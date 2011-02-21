@@ -42,19 +42,33 @@ class AdminHandler(webapp.RequestHandler):
         action, args = action[0], action[1:]
         
         if action == 'edit':
-            filelist = [ ent.key().name()[1:] for ent in DBYAML.all() ]
+            filelist = DBYAML.catalog()
             html = template.render('tmpl/edit.html', { 'filelist': filelist })
             self.response.out.write(html)
             
         elif action == 'load' and args:
-            key_name = '_%s' % args[0]
-            ent = DBYAML.get_by_key_name(key_name)
-            if ent: self.response.out.write(ent.yaml_text)
-            
+            self.response.out.write(DBYAML.loadtext(name=args[0]))
             
         elif action == 'test':
-            name = '01208888888'
-            self.get_profile_image(name)
+            import yaml
+            
+            d = {}
+            for ent in DBYAML.all():
+                k = ent.key().name()
+                if k.startswith('_'): 
+                    k = k[1:]
+                    d[k] = yaml.load(ent.yaml_text)
+            logging.info(d)
+            
+            yaml_text = yaml.safe_dump(d, encoding='utf8',
+                                       allow_unicode=True,
+                                       default_flow_style=False)
+            yaml_text = yaml_text.decode('utf-8')
+            
+            e = DBYAML(key_name='settings')
+            e.yaml_text = yaml_text
+            e.put()
+            
             
             
     def post(self, action):
@@ -65,14 +79,11 @@ class AdminHandler(webapp.RequestHandler):
                 name = params.get('name')
                 text = params.get('yaml-text')
                 logging.info("%s:%s" % (name, text))
-                if name and text:
-                    try: DBYAML.save(name, yaml.load(text))
-                    except: pass
-                    
+                DBYAML.save(name, text)
+                
             elif cmd == 'DELETE':
-                key_name = '_%s' % params.get('name')
-                ent = DBYAML.get_by_key_name(key_name)
-                if ent: ent.delete()
+                DBYAML.delete(params.get('name'))
+                
         self.redirect('/admin/edit/')
         
         

@@ -223,7 +223,7 @@ class MainHandler(webapp.RequestHandler):
             handler = libs.auth.OAuthHandler(handler=self, conf=conf)
             users_token = handler.callback()
             if users_token:
-
+                
                 is_block = False
                 blocklist = DBYAML.load('blocklist')
                 if blocklist:
