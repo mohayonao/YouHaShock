@@ -125,13 +125,34 @@ def random_tweet(via, count=1):
                                    word      = word     , status_id = status_id ).put()
                 logging.info('%s (posted by %s via %s)' % (status, to_user, from_user))
                 
-            item.randint = random.randint(0, 1000)
-            item.put()
-            
-            if item != from_token:
+                
+            expired = datetime.datetime.now() - datetime.timedelta(hours=2)
+            if from_token.is_saved():
+                # 既存ユーザー
+                if from_token.modified < expired:
+                    from_token.randint = random.randint(0, 1000)
+                    from_token.put()
+                    logging.debug('existing user re-randint(from)')
+            else:
+                # 新規ユーザー
                 from_token.randint = random.randint(0, 1000)
                 from_token.put()
-            
+                logging.debug('brand-new user put')
+                
+                if item == from_token:
+                    # 新規ユーザーが自爆したときAPIの結果からアイコン画像のURLをメモしておく
+                    logging.debug('brand-new user : profile_image_url')
+                    
+                    profile_image_url = api_result.get('user', {}).get('profile_image_url')
+                    key_name = 'at_%s' % to_user
+                    memcache.add(key=key_name, value=profile_image_url)
+                    
+            if item != from_token:
+                if item.modified < expired:
+                    logging.debug('existing user re-randint(to)')
+                    item.randint = random.randint(0, 1000)
+                    item.put()
+                    
             return True # break
     return False
 

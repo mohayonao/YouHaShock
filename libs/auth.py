@@ -117,7 +117,7 @@ class OAuthHandler:
             logging.warning('callback: screen_name is None')
             return
         
-        access_token = OAuthAccessToken.set_access_token(access_url)
+        access_token = OAuthAccessToken.get_access_token(params)
         access_token._name = name
         
         return access_token

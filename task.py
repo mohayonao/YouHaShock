@@ -22,6 +22,7 @@ import logging
 import datetime
 
 
+from google.appengine.api import memcache
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import util
 
@@ -200,6 +201,12 @@ class TaskHandler(webapp.RequestHandler):
         
         
     def get_profile_image(self, name):
+        
+        key_name = 'at_%s' % name
+        profile_image_url = memcache.get(key=key_name)
+        if profile_image_url:
+            return profile_image_url
+        
         
         consumer  = DBYAML.load('oauth')
         consumer = dict(consumer_key    = consumer.get('consumer_key'   ),

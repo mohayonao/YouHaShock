@@ -50,40 +50,28 @@ class OAuthAccessToken(db.Model):
     created  = db.DateTimeProperty(auto_now_add=True)
     modified = db.DateTimeProperty(auto_now=True)
     
-    @classmethod
-    def get_access_token(cls, name):
-        key_name = '_%s' % name
-        logging.error('get_access_token: call!?')
-        return OAuthAccessToken.get_by_key_name(key_name)
-    
     
     @classmethod
-    def set_access_token(cls, url):
-        params = url2dict(url)
+    def get_access_token(cls, params=None, url=None):
+        if params is None:
+            params = url2dict(url)
         key_name = '_%s' % params['oauth_token'][:15]
-        token  = OAuthAccessToken.get_by_key_name(key_name)
-        if token:
-            token.oauth_token        = params['oauth_token']
-            token.oauth_token_secret = params['oauth_token_secret']
-        else:
-            token = OAuthAccessToken(key_name=key_name, **params)
-        token.put()
+        token  = OAuthAccessToken.get_or_insert(key_name)
+        token.oauth_token        = params['oauth_token']
+        token.oauth_token_secret = params['oauth_token_secret']
         return token
     
     
     @classmethod
     def get_random_access_token(cls, n=20):
-
+        
         for i in xrange(3):
-            a = random.randint(0, 1000)
-            b = random.randint(0, 1000)
-            a, b = min(a, b), max(a, b)
-            if b - a < 100: b = a + 100
+            a = random.randint(0, 900)
+            b = a + 100
             
             lst = OAuthAccessToken.gql("WHERE randint >= :1 AND randint < :2", a, b).fetch(n)
             if lst: break
-        
-        random.shuffle(lst)
+            
         return lst
 
 
