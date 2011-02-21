@@ -80,9 +80,9 @@ class TaskHandler(webapp.RequestHandler):
                 key_name = token.key().name()
                 t = taskqueue.Task(url='/task/image', params=dict(key_name=key_name), countdown=i*2)
                 q.add(t)
-            
-            
-            
+                
+                
+                
     def post(self, action):
         if action == 'access':
             key_name = self.request.get('key_name')

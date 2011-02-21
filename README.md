@@ -1,5 +1,5 @@
 # YOUはSHOCK
-http://you-ha-shock.appspot.com
+<http://you-ha-shock.appspot.com>
 
 知らない誰かにひでぶと言わせるTwitter/GAEアプリ
 
@@ -37,6 +37,15 @@ user_auth_url:     http://api.twitter.com/oauth/authenticate
 - ひっ!!　ひでぶっ!!  
 - ひでぶっ!!  
 ...  
+</pre>
+
+
+### adminuser (必須)
+管理用ユーザー
+
+<pre>
+oauth_token: 
+oauth_token_secret: 
 </pre>
 
 
