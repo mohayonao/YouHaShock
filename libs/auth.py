@@ -99,18 +99,18 @@ class OAuthHandler:
         chk = libs.cpu.CPUChecker("auth.callback")
         
         # Request Token
+        chk.kokokara()
         request_token = OAuthRequestToken.get_request_token(oauth_token)
+        chk.kokomade("OAuthRequestToken.get_request_token")
         if not request_token:
             logging.warning('callback: None Request Token')
             return
-        chk.check("OAuthRequestToken.get_request_token(oauth_token)")
 
-        
+        chk.kokokara()
         access_url = self.client. \
             get_data_from_signed_url(self.client.access_token_url, request_token)
         request_token.delete()
-        chk.check("request_token.delete()")
-        
+        chk.kokomade("request_token.delete")
         
         # Access Token
         try:
@@ -123,10 +123,10 @@ class OAuthHandler:
         if not name:
             logging.warning('callback: screen_name is None')
             return
-        chk.check("name = params.get('screen_name')")
         
+        chk.kokokara()
         access_token = OAuthAccessToken.get_access_token(params)
         access_token._name = name
-        chk.check("access_token = OAuthAccessToken.get_access_token(params)")
+        chk.kokomade("OAuthAccessToken.get_access_token")
         
         return access_token

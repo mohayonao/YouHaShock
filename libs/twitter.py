@@ -46,7 +46,7 @@ def get_api_list(filename):
     return result
 
 
-def get_api_callee(method_p, name, url, require):
+def get_api_callee(method_p, name, url, require, loglv=0):
 
     def call_api(**argv):
         if require:
@@ -62,7 +62,7 @@ def get_api_callee(method_p, name, url, require):
                 raise KeyError, error_message
         
         request_url = url % argv
-        logging.debug('api: %s (%s)' % (name, request_url))
+        if loglv: logging.log(loglv, 'api: %s (%s)' % (name, request_url))
         return method_p(request_url, **argv)
     return call_api
 
@@ -76,14 +76,14 @@ class OAuth:
 
 
 class TwitterAPI:
-    def __init__(self, oauth):
+    def __init__(self, oauth, loglv=0):
         self.oauth = oauth
         self.impl_api = {}
-        self.bind_api_methods()
-    
+        self.bind_api_methods(loglv)
+        
     
     # bind methods for twitter api defined twitterapi.yaml
-    def bind_api_methods(self):
+    def bind_api_methods(self, loglv):
         filepath = '%s/twitterapi.yaml' % os.path.dirname(__file__)
         apilist  = get_api_list(filepath)
         method_dict = dict( GET=self.GET, POST=self.POST, DELETE=self.DELETE)
@@ -93,7 +93,7 @@ class TwitterAPI:
             
             method = method_dict.get(http_method)
             if method:
-                setattr(self, name, get_api_callee(method, name, url, require))
+                setattr(self, name, get_api_callee(method, name, url, require, loglv))
                 self.impl_api[name] = getattr(self, name)
     
     

@@ -83,87 +83,83 @@ def random_tweet(via, count=1):
     
     
     chk = libs.cpu.CPUChecker("random_tweet")
+    chk.kokokara()
     if suicide:
         lst = [ from_token ]
     else:
-        lst = OAuthAccessToken.get_random_access_token(5)
+        lst = OAuthAccessToken.get_random_access_token(15)
         if from_token not in lst:
             lst.append(from_token)
         random.shuffle(lst)
-    chk.check("OAuthAccessToken.get_random_access_token(5)")
+    chk.kokomade("OAuthAccessToken.get_random_access_token")
     
     word   = random.choice(words)
     status = format % word
     
     for i, item in enumerate(lst):
-        chk.check('random_tweet: try=%d' % (i+1))
+        logging.debug('random_tweet: try=%d' % (i+1))
         
         token  = dict(token        = item.oauth_token,
                       token_secret = item.oauth_token_secret)
         api = TwitterAPI(OAuth(consumer, token))
         
+        chk.kokokara()        
         api_result = None
         try:
             # api_result = api.verify()
             api_result = api.tweet(status=status)
             
         except urlfetch.DownloadError:
+            api_result = None
             logging.warning('tweet failed: timeout')
             
         except urlfetch.InvalidURLError:
-            logging.warning('tweet failed: invalid access_token %s' % item.oauth_token)
+            api_result = None
             item.delete()
+            logging.warning('tweet failed: invalid access_token %s' % item.oauth_token)
             
-        else:
-            chk.check("api_result = api.tweet(status=status)")
-            
-            to_user = api_result.get('user', {}).get('screen_name')
-            if not to_user:
-                logging.warning('not reach!!')
-                to_user = api_result.get('screen_name', u'unknown')
-                
-            to_user   = to_user.encode('utf-8')
-            status_id = int(api_result.get('id', 0))
-            if status_id:
-                YouHaShockHistory( from_user = from_user, to_user   = to_user,
-                                   word      = word     , status_id = status_id ).put()
-                logging.info('%s (posted by %s via %s)' % (status, to_user, from_user))
-            chk.check("YouHaShockHistory")
-            
-            
-            expired = datetime.datetime.now() - datetime.timedelta(hours=2)
-            if from_token.is_saved():
-                # 既存ユーザー
-                if from_token.modified < expired:
-                    from_token.randint = random.randint(0, 1000)
-                    from_token.put()
-                    logging.debug('existing user re-randint(from)')
-            else:
-                # 新規ユーザー
+        chk.kokomade("api_result = api.tweet(status=status)")
+        if not api_result: continue
+        
+        
+        chk.kokokara()
+        to_user = api_result.get('user', {}).get('screen_name').encode('utf-8')
+        status_id = int(api_result.get('id', 0))
+        if status_id:
+            YouHaShockHistory( from_user = from_user, to_user   = to_user,
+                               word      = word     , status_id = status_id ).put()
+            logging.info('%s (posted by %s via %s)' % (status, to_user, from_user))
+        chk.kokomade("YouHaShockHistory")
+        
+        
+        chk.kokokara()
+        expired = datetime.datetime.now() - datetime.timedelta(hours=2)
+        if from_token.is_saved():
+            # 既存ユーザー
+            if from_token.modified < expired:
                 from_token.randint = random.randint(0, 1000)
                 from_token.put()
-                logging.debug('brand-new user put')
+        else:
+            # 新規ユーザー
+            from_token.randint = random.randint(0, 1000)
+            from_token.put()
+            if item == from_token:
+                # 新規ユーザーが自爆したときAPIの結果からアイコン画像のURLをメモしておく
+                profile_image_url = api_result.get('user', {}).get('profile_image_url')
+                key_name = 'at_%s' % to_user
+                memcache.add(key=key_name, value=profile_image_url)
                 
-                if item == from_token:
-                    # 新規ユーザーが自爆したときAPIの結果からアイコン画像のURLをメモしておく
-                    logging.debug('brand-new user : profile_image_url')
-                    
-                    profile_image_url = api_result.get('user', {}).get('profile_image_url')
-                    key_name = 'at_%s' % to_user
-                    memcache.add(key=key_name, value=profile_image_url)
-                    
-            if item != from_token:
-                if item.modified < expired:
-                    logging.debug('existing user re-randint(to)')
-                    item.randint = random.randint(0, 1000)
-                    item.put()
-            chk.check("TokenUpdate")
-            
-            return True # break
+        if item != from_token:
+            if item.modified < expired:
+                item.randint = random.randint(0, 1000)
+                item.put()
+        chk.kokomade("TokenUpdate")
+        
+        return True # break
     return False
 
-        
-        
+
+
 ################################################################################
 ## handler
 ################################################################################
@@ -190,11 +186,11 @@ class MainHandler(webapp.RequestHandler):
             session_id = str(random.getrandbits(64))
             expires = datetime.datetime.now() + datetime.timedelta(hours=1)
             expires = expires.strftime('%a, %d %b %Y %H:%M:%S GMT')
-
+            
             self.response.headers.add_header(  
                 'Set-Cookie', 'session_id=%s;expires=%s' % (session_id, expires))
             
-        memcache.add(key=session_id, value=0, time=300)
+        memcache.add(key=session_id, value=0, time=120)
         count = memcache.incr(session_id)
         if count is None:
             count = 1

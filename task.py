@@ -52,7 +52,7 @@ class TaskHandler(webapp.RequestHandler):
     def get(self, action):
         if action == 'request':
             expired = datetime.datetime.now() - datetime.timedelta(minutes=10)
-            expired_tokens = OAuthRequestToken.all().filter('created <', expired).fetch(50)
+            expired_tokens = OAuthRequestToken.all().filter('created <', expired).fetch(20)
             for token in expired_tokens:
                 token.delete()
                 
@@ -149,7 +149,6 @@ class TaskHandler(webapp.RequestHandler):
         key_name = 'at_%s' % name
         ent = UserStatus.get_by_key_name(key_name)
         if not ent:
-            logging.warning('missing user: %s (%s)' % (name, key_name))
             ent = UserStatus(key_name=key_name)
             ent.profile_image_url = self.get_profile_image(name)
             ent.put()
