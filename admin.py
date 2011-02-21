@@ -49,27 +49,6 @@ class AdminHandler(webapp.RequestHandler):
         elif action == 'load' and args:
             self.response.out.write(DBYAML.loadtext(name=args[0]))
             
-        elif action == 'test':
-            import yaml
-            
-            d = {}
-            for ent in DBYAML.all():
-                k = ent.key().name()
-                if k.startswith('_'): 
-                    k = k[1:]
-                    d[k] = yaml.load(ent.yaml_text)
-            logging.info(d)
-            
-            yaml_text = yaml.safe_dump(d, encoding='utf8',
-                                       allow_unicode=True,
-                                       default_flow_style=False)
-            yaml_text = yaml_text.decode('utf-8')
-            
-            e = DBYAML(key_name='settings')
-            e.yaml_text = yaml_text
-            e.put()
-            
-            
             
     def post(self, action):
         if action == 'edit':
@@ -86,12 +65,6 @@ class AdminHandler(webapp.RequestHandler):
                 
         self.redirect('/admin/edit/')
         
-        
-
-        
-
-
-
 
 def main():
     application = webapp.WSGIApplication([
