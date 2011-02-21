@@ -3,6 +3,7 @@ version: 1
 runtime: python
 api_version: 1
 
+
 handlers:
 - url: .*/(.*\.css)
   static_files: static/css/\1
@@ -33,3 +34,9 @@ handlers:
   
 - url: .*
   script: main.py
+
+
+error_handlers:
+  - error_code: over_quota
+    file: static/html/error.html
+    
