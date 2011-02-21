@@ -131,26 +131,33 @@ class APIHandler(webapp.RequestHandler):
         blocklist = DBYAML.load('blocklist')
         
         def write_user_ranking(type, limit):
-            if type == 'call':
-                query = UserStatus.all().order('-call_count')
-            else:
-                query = UserStatus.all().order('-callee_count')
-                
-            i = 0
-            for ent in query:
-                name = ent.key().name()[3:]
-                if name in blocklist: continue
-                
-                profile_image_url = ent.profile_image_url
+            key_name = 'ranking_%s' % type
+            lst = memcache.get(key_name)
+            if not isinstance(lst, list):
+                lst = []
                 if type == 'call':
-                    count = ent.call_count
+                    query = UserStatus.all().order('-call_count')
                 else:
-                    count = ent.callee_count
-                self.response.out.write("['%s','%s',%d]," % (name, profile_image_url,count))
-                i += 1
-                if i >= limit: break
+                    query = UserStatus.all().order('-callee_count')
+                    
+                for ent in query:
+                    name = ent.key().name()[3:]
+                    if name in blocklist: continue
+
+                    profile_image_url = ent.profile_image_url
+                    if type == 'call':
+                        count = ent.call_count
+                    else:
+                        count = ent.callee_count
+                    lst.append( (name, profile_image_url,count) )
+                    limit -= 1
+                    if limit < 0: break
+                memcache.set(key=key_name, value=lst, time=120)
                 
+            for l in lst:
+                self.response.out.write("['%s','%s',%d]," % (l[0], l[1], l[2]))
                 
+        
         try: limit = int(self.request.get('limit', 5))
         except ValueError: limit = 5
         
