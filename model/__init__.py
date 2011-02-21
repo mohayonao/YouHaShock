@@ -56,11 +56,13 @@ class OAuthAccessToken(db.Model):
         if params is None:
             params = url2dict(url)
         key_name = '_%s' % params['oauth_token'][:15]
-        token  = OAuthAccessToken.get_or_insert(key_name)
-        token.oauth_token        = params['oauth_token']
-        token.oauth_token_secret = params['oauth_token_secret']
+        token = OAuthAccessToken.get_by_key_name(key_name)
+        if not token:
+            token = OAuthAccessToken(key_name=key_name)
+            token.oauth_token        = params['oauth_token']
+            token.oauth_token_secret = params['oauth_token_secret']
+            logging.debug('new OAuthAccessToken')
         return token
-    
     
     @classmethod
     def get_random_access_token(cls, n=20):
@@ -91,9 +93,12 @@ class UserStatus(db.Model):
     callee_count = db.IntegerProperty(default=0)
     graph    = db.TextProperty()
     modified = db.DateTimeProperty(auto_now=True)
+
+
+class Ranking(db.Model):
+    data = db.TextProperty()
     
-
-
+    
 class DBYAML(db.Model):
     yaml_text = db.TextProperty()
     created   = db.DateTimeProperty(auto_now_add=True)
