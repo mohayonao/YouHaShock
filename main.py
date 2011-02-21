@@ -37,8 +37,10 @@ from google.appengine.ext.webapp import template
 from google.appengine.ext import db
 
 import libs.auth
+import libs.cpu
 
 from libs.twitter import OAuth, TwitterAPI
+
 
 from model import OAuthRequestToken, OAuthAccessToken
 from model import YouHaShockHistory
@@ -78,29 +80,27 @@ def random_tweet(via, count=1):
         dice = random.random()
         if dice <= suicide_rate:
             suicide = True
-        logging.debug('dice=%5.3f, rate=%5.3f' % (dice, suicide_rate))
-    logging.debug('count = %s [%s]' % (count, suicide))
     
+    
+    chk = libs.cpu.CPUChecker("random_tweet")
     if suicide:
         lst = [ from_token ]
-        logging.debug('suicide!!!!')
     else:
-        lst = OAuthAccessToken.get_random_access_token(15)
-        if from_token in lst:
+        lst = OAuthAccessToken.get_random_access_token(5)
+        if from_token not in lst:
             lst.append(from_token)
         random.shuffle(lst)
-        
-        
+    chk.check("OAuthAccessToken.get_random_access_token(5)")
+    
     word   = random.choice(words)
     status = format % word
     
     for i, item in enumerate(lst):
-        logging.debug('random_tweet: try=%d', (i+1))
+        chk.check('random_tweet: try=%d' % (i+1))
         
         token  = dict(token        = item.oauth_token,
                       token_secret = item.oauth_token_secret)
-        oauth  = OAuth(consumer, token)
-        api = TwitterAPI(oauth)
+        api = TwitterAPI(OAuth(consumer, token))
         
         api_result = None
         try:
@@ -115,17 +115,22 @@ def random_tweet(via, count=1):
             item.delete()
             
         else:
-            to_user = api_result.get('user'  , {}).get('screen_name')
-            if not to_user: to_user = api_result.get('screen_name', u'unknown')
-            if to_user:     to_user = to_user.encode('utf-8')
+            chk.check("api_result = api.tweet(status=status)")
             
+            to_user = api_result.get('user', {}).get('screen_name')
+            if not to_user:
+                logging.warning('not reach!!')
+                to_user = api_result.get('screen_name', u'unknown')
+                
+            to_user   = to_user.encode('utf-8')
             status_id = int(api_result.get('id', 0))
             if status_id:
                 YouHaShockHistory( from_user = from_user, to_user   = to_user,
                                    word      = word     , status_id = status_id ).put()
                 logging.info('%s (posted by %s via %s)' % (status, to_user, from_user))
-                
-                
+            chk.check("YouHaShockHistory")
+            
+            
             expired = datetime.datetime.now() - datetime.timedelta(hours=2)
             if from_token.is_saved():
                 # 既存ユーザー
@@ -152,7 +157,8 @@ def random_tweet(via, count=1):
                     logging.debug('existing user re-randint(to)')
                     item.randint = random.randint(0, 1000)
                     item.put()
-                    
+            chk.check("TokenUpdate")
+            
             return True # break
     return False
 
@@ -187,8 +193,7 @@ class MainHandler(webapp.RequestHandler):
 
             self.response.headers.add_header(  
                 'Set-Cookie', 'session_id=%s;expires=%s' % (session_id, expires))
-            logging.debug('SET: session_id: %s' % session_id)
-
+            
         memcache.add(key=session_id, value=0, time=300)
         count = memcache.incr(session_id)
         if count is None:
@@ -201,7 +206,7 @@ class MainHandler(webapp.RequestHandler):
     
     def get(self, action):
         
-        errmsg = None
+        cause_error = None
         if action == 'verify':
             conf = DBYAML.load('oauth')
             if not conf: return
@@ -229,31 +234,39 @@ class MainHandler(webapp.RequestHandler):
                 if blocklist:
                     if users_token._name in blocklist:
                         is_block = True
-
+                        
                 if not is_block:
                     # random tweet
                     count  = self.session_counter()
                     result = random_tweet(via=users_token, count=count)
-
+                    
                     if result:
                         # update graph
                         q = taskqueue.Queue('fastest')
                         t = taskqueue.Task(url='/task/graph')
                         q.add(t)
                     else:
-                        errmsg = 'エラーが発生しました。しばらく待ってからもう一度試してみてください。'
+                        cause_error = True
                         logging.error('random tweet error!!')
                     
                 else:
-                    errmsg = 'エラーが発生しました。しばらく待ってからもう一度試してみてください。'
+                    cause_error = True
                     logging.warning('blocking %s' % users_token._name)
                     
             else:
-                errmsg = 'エラーが発生しました。しばらく待ってからもう一度試してみてください。'
+                cause_error = True
                 logging.error('callback error!!')
                 
-        self.default_page(errmsg=errmsg)
-        
+            url = '/'
+            if cause_error: url = '/error'
+            self.redirect(url)
+            
+        else:
+            errmsg = None
+            if action == 'error':
+                errmsg = 'エラーが発生しました。しばらく待ってからもう一度試してみてください。'
+            self.default_page(errmsg=errmsg)
+
 
 
 def main():

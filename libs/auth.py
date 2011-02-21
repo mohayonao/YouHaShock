@@ -13,6 +13,8 @@ from google.appengine.api import urlfetch
 
 from model import OAuthRequestToken, OAuthAccessToken
 
+import libs.cpu
+
 
 ################################################################################
 # misc
@@ -94,15 +96,20 @@ class OAuthHandler:
         oauth_token = self.handler.request.get('oauth_token')
         if not oauth_token: self.login()
         
+        chk = libs.cpu.CPUChecker("auth.callback")
+        
         # Request Token
         request_token = OAuthRequestToken.get_request_token(oauth_token)
         if not request_token:
             logging.warning('callback: None Request Token')
             return
+        chk.check("OAuthRequestToken.get_request_token(oauth_token)")
+
         
         access_url = self.client. \
             get_data_from_signed_url(self.client.access_token_url, request_token)
         request_token.delete()
+        chk.check("request_token.delete()")
         
         
         # Access Token
@@ -116,8 +123,10 @@ class OAuthHandler:
         if not name:
             logging.warning('callback: screen_name is None')
             return
+        chk.check("name = params.get('screen_name')")
         
         access_token = OAuthAccessToken.get_access_token(params)
         access_token._name = name
+        chk.check("access_token = OAuthAccessToken.get_access_token(params)")
         
         return access_token
