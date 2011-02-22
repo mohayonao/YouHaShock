@@ -68,8 +68,8 @@ class OAuthAccessToken(db.Model):
     def get_random_access_token(cls, n=20):
         
         for i in xrange(3):
-            a = random.randint(0, 900)
-            b = a + 100
+            a = random.randint(0, 995)
+            b = a + 20
             
             lst = OAuthAccessToken.gql("WHERE randint >= :1 AND randint < :2", a, b).fetch(n)
             if lst: break

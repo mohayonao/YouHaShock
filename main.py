@@ -87,10 +87,9 @@ def random_tweet(via, count=1):
     if suicide:
         lst = [ from_token ]
     else:
-        lst = OAuthAccessToken.get_random_access_token(15)
-        if from_token not in lst:
-            lst.append(from_token)
+        lst = OAuthAccessToken.get_random_access_token(5)
         random.shuffle(lst)
+        lst.append(from_token)
     chk.kokomade("OAuthAccessToken.get_random_access_token")
     
     word   = random.choice(words)
